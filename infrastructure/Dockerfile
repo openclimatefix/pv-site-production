@@ -6,7 +6,7 @@ COPY ./requirements.txt /app/requirements.txt
 # install requirements
 RUN apt-get clean
 RUN apt-get update -y
-RUN apt-get install gcc
+RUN apt-get install gcc g++ libgeos-dev -y
 RUN pip install -U pip
 RUN pip install -r /app/requirements.txt
 
