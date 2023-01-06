@@ -10,10 +10,9 @@ ___/       \____
 
 """
 
-
 import os
 import sys
-from typing import Optional, List
+from typing import List, Optional
 
 import pandas as pd
 from ocf_datapipes.training.simple_pv import simple_pv_datapipe

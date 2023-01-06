@@ -1,13 +1,9 @@
 """ Main app """
 import click
+
 from pv_site_production.models.cos.cos_fake_model import run_cos_model
 
-
-# choose model
-
-# run model
-
-# save to datbase
+# TODO add logging
 
 
 @click.command()

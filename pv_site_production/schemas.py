@@ -1,6 +1,7 @@
 """ Schema for what the ml modesl produce"""
-import pandera as pa
 from datetime import datetime
+
+import pandera as pa
 
 # define schema
 schema = pa.DataFrameSchema(
