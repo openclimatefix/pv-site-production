@@ -6,7 +6,7 @@ from ocf_datapipes.batch.fake.fake_batch import make_fake_batch
 from ocf_datapipes.config.model import PV, Configuration, PVFiles
 from ocf_datapipes.config.save import save_yaml_configuration
 
-from pv_site_production.models.cos.cos_fake_model import (
+from pv_site_production.models.cos.cos_model import (
     make_fake_intensity,
     run_cos_model,
     run_one_batch,
