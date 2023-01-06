@@ -20,8 +20,6 @@ from ocf_datapipes.utils.consts import BatchKey
 
 from pv_site_production.models.cos.intensities import make_fake_intensity
 
-TOTAL_MINUTES_IN_ONE_DAY = 24 * 60
-
 
 def run_cos_model(configuration_filename: Optional[str] = None) -> pd.DataFrame:
     """

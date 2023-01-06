@@ -3,7 +3,7 @@ from datetime import datetime
 
 import numpy as np
 
-from pv_site_production.models.cos.cos_model import TOTAL_MINUTES_IN_ONE_DAY
+TOTAL_MINUTES_IN_ONE_DAY = 24 * 60
 
 
 def make_fake_intensity(datetime_utc: datetime) -> float:
