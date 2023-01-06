@@ -2,3 +2,4 @@ ocf_datapipes
 torch
 pandera
 pandas
+pytest
