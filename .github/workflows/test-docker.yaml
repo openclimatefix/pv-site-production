@@ -1,4 +1,5 @@
-\name: Test Docker image
+name: Test Docker image
+
 on:
   push:
   schedule:
@@ -16,7 +17,7 @@ jobs:
         run: docker-compose -f infrastructure/test-docker-compose.yml build
 
       - name: Run tests inside the container
-        run: docker-compose -f infrastructure/test-docker-compose.yml run api
+        run: docker-compose -f infrastructure/test-docker-compose.yml run tests
 
       - name: Copy coverage
         run: |

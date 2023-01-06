@@ -1,4 +1,4 @@
-"""
+r"""
 This is a simple fake model, that just uses the time of day, and makes a daily profile using a cos function
 
 Daily profile
@@ -94,5 +94,3 @@ def run_one_batch(batch) -> List[dict]:
         intensities = intensities + intensities_one_batch
 
     return intensities
-
-

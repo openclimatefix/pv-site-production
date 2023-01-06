@@ -1,3 +1,4 @@
+""" Function to make a solar intensity from one datetime """
 from datetime import datetime
 
 import numpy as np

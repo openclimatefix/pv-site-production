@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
 
-  api:
+  tests:
     build:
       context: ../
       dockerfile: infrastructure/Dockerfile
