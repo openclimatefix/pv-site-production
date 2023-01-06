@@ -43,6 +43,7 @@ def run(
 
     # save model
     # TODO
+    print(results_df)
 
 
 if __name__ == "__main__":

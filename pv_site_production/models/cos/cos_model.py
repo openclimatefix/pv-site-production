@@ -1,5 +1,5 @@
 r"""
-This is a simple fake model, that just uses the time of day, and makes a daily profile using a cos function
+This is a simple fake model, that just uses the time of day.
 
 Daily profile
        _-_
@@ -30,7 +30,8 @@ def run_cos_model(configuration_filename: Optional[str] = None) -> pd.DataFrame:
 
     This model take the time of day and makes curve that is zdero at night, and non zero in the day
 
-    :param configuration_filename: The configuration file. This is optional, configuration.yaml is loaded by default
+    :param configuration_filename: The configuration file.
+        This is optional, configuration.yaml is loaded by default
     :return: A dataframe with the following columns
         - forecast_kw, the forecast value
         - pv_uuid, the pv uuid value
