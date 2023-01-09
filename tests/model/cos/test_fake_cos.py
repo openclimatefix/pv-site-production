@@ -1,5 +1,6 @@
 import tempfile
 from datetime import datetime
+from freezegun import freeze_time
 
 import pytest
 from ocf_datapipes.batch.fake.fake_batch import make_fake_batch
@@ -36,11 +37,12 @@ def test_run_one_batch():
     assert len(results) == 288 * 32
 
 
+@freeze_time("2022-01-01 07:00")
 def test_run_cos_model(pv_yields_and_systems):
 
     configuration = Configuration()
     configuration.input_data.pv = PV(
-        history_minutes=60, forecast_minutes=60 * 24, pv_files_groups=[PVFiles()], is_live=True
+        history_minutes=60, forecast_minutes=0, pv_files_groups=[PVFiles()], is_live=True
     )
 
     # TODO need to add fake PV database, thate

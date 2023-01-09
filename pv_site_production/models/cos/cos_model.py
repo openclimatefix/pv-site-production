@@ -50,7 +50,7 @@ def run_cos_model(configuration_filename: Optional[str] = None) -> pd.DataFrame:
         batch = next(predict_dataloader)
 
         y = run_one_batch(batch)
-        results.append(y)
+        results = results + y
 
     # format results into dataframe and validate,
     # change list of dict to dataframe
