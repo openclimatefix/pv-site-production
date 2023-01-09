@@ -31,7 +31,6 @@ def run(
         Exception(f"Could not find model {model_name}")
 
     # run model, this returns a dataframe with the following columns
-    # "t0_datetime_utc"
     # "target_datetime_utc"
     # "forecast_kw"
     # "pv_uuid"
