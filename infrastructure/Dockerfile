@@ -1,12 +1,12 @@
 FROM python:3.10-slim
 
-# copy files requirements
-COPY ./requirements.txt /app/requirements.txt
-
-# install requirements
+# install extra requirements
 RUN apt-get clean
 RUN apt-get update -y
 RUN apt-get install gcc g++ libgeos-dev -y
+
+# copy and install files requirements
+COPY ./requirements.txt /app/requirements.txt
 RUN pip install -U pip
 RUN pip install -r /app/requirements.txt
 

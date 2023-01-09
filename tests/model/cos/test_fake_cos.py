@@ -36,8 +36,7 @@ def test_run_one_batch():
     assert len(results) == 288 * 32
 
 
-@pytest.mark.skip("Need to out fake database of PV database")
-def test_run_cos_model():
+def test_run_cos_model(pv_yields_and_systems):
 
     configuration = Configuration()
     configuration.input_data.pv = PV(
@@ -50,6 +49,6 @@ def test_run_cos_model():
         filename = fp.name
 
         # save default config to file
-        save_yaml_configuration(Configuration(), filename)
+        save_yaml_configuration(configuration, filename)
 
         run_cos_model(configuration_filename=filename)
