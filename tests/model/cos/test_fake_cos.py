@@ -1,8 +1,7 @@
 import tempfile
 from datetime import datetime
-from freezegun import freeze_time
 
-import pytest
+from freezegun import freeze_time
 from ocf_datapipes.batch.fake.fake_batch import make_fake_batch
 from ocf_datapipes.config.model import PV, Configuration, PVFiles
 from ocf_datapipes.config.save import save_yaml_configuration
