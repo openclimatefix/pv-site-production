@@ -47,6 +47,7 @@ def run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
 
         # pass timestamp, pv_id and xarray of history into model
         # TODO
+        print(pv_id, pv_history)
         # results = model.predict()
 
         # format results into dataframe, columns will be

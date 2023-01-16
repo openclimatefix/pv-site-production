@@ -16,3 +16,4 @@ def test_run_one_batch():
     results = nwp_pv.run_one_batch(batch=batch)
 
     # TODO add asserts
+    print(results)
