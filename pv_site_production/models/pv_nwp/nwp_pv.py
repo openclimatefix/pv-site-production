@@ -18,7 +18,7 @@ def run_nwp_pv_model():
     # TODO could make this a generic function that runs models
 
 
-def _run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
+def run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
     """
     Run NWP PV model using one model
 
