@@ -1,3 +1,4 @@
+""" Run the NWP PV model"""
 from typing import Optional
 
 import pandas as pd
@@ -6,7 +7,24 @@ from ocf_datapipes.utils.consts import BatchKey
 from pv_site_production.models.pv_nwp.load import load_model
 
 
+def run_nwp_pv_model():
+    """
+    Run the NWP PV model
+
+    :return: pandas dataframe of results
+    """
+
+    # TODO
+
+
 def run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
+    """
+    Run NWP PV model using one model
+
+    :param batch:
+    :param model:
+    :return: pandas data frame of results
+    """
 
     if model is None:
         model = load_model()
