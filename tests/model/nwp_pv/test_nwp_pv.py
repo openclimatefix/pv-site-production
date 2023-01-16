@@ -1,7 +1,9 @@
-from pv_site_production.models.pv_nwp import nwp_pv
+import os
+
 from ocf_datapipes.batch.fake.fake_batch import make_fake_batch
 from ocf_datapipes.config.load import load_yaml_configuration
-import os
+
+from pv_site_production.models.pv_nwp import nwp_pv
 
 
 def get_batch():
