@@ -1,0 +1,33 @@
+general:
+  description: !ENV example configuration with env ${PATH} # noqa
+  name: example
+git: null
+input_data:
+  pv:
+    pv_files_groups:
+      - label: solar_sheffield_passiv
+        pv_filename: not-needed
+        pv_metadata_filename: not-needed
+    get_center: false
+    is_live: true
+    pv_image_size_meters_height: 100
+    pv_image_size_meters_width: 100
+    n_pv_systems_per_example: 1
+    history_minutes: 240
+    forecast_minutes: 0
+    start_datetime: 2021-01-01 00:00
+    end_datetime: 2022-10-01 00:00
+    time_resolution_minutes: 15
+    # TODO add NWP
+
+output_data:
+  filepath: not used by experiments!
+process:
+  batch_size: 32
+  local_temp_path: ~/temp/
+  seed: 1234
+  upload_every_n_batches: 16
+  n_train_batches: 90
+  n_validation_batches: 10
+  n_test_batches: 10
+  train_test_validation_split: [3, 0, 1]
