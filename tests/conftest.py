@@ -142,3 +142,6 @@ def pv_yields_and_systems(db_session):
         "pv_yields": pv_yield_sqls,
         "pv_systems": [pv_system_sql_1, pv_system_sql_2],
     }
+
+
+# TODO add fake NWP data so tests get nwp data.

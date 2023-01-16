@@ -46,9 +46,13 @@ def run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
         pv_history = batch[BatchKey.pv][i, :, 0]
         # TODO change to xarray
 
+        # get npw data
+        # shape: (batch_size, target_time_utc, channel, y, x)
+        nwp = batch[BatchKey.nwp]
+
         # pass timestamp, pv_id and xarray of history into model
         # TODO
-        print(pv_id, pv_history)
+        print(pv_id, pv_history, nwp)
         # results = model.predict()
 
         # format results into dataframe, columns will be
