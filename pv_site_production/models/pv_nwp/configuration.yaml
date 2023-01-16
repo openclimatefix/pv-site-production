@@ -19,6 +19,14 @@ input_data:
     end_datetime: 2022-10-01 00:00
     time_resolution_minutes: 15
     # TODO add NWP
+  nwp:
+    nwp_image_size_pixels_height: 2
+    nwp_image_size_pixels_width: 2
+    nwp_zarr_path: !ENV ${NWP_ZARR_PATH}
+    history_minutes: 60
+    forecast_minutes: 4800 # 240 hours
+    time_resolution_minutes: 60
+    index_by_id: True
 
 output_data:
   filepath: not used by experiments!
