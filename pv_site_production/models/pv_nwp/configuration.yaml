@@ -18,6 +18,7 @@ input_data:
     start_datetime: 2021-01-01 00:00
     end_datetime: 2022-10-01 00:00
     time_resolution_minutes: 15
+    # TODO add NWP
 
 output_data:
   filepath: not used by experiments!
