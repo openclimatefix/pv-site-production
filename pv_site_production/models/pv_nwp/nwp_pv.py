@@ -14,10 +14,11 @@ def run_nwp_pv_model():
     :return: pandas dataframe of results
     """
 
-    # TODO
+    # TODO, loops over batches. runs `run_one_batch`
+    # TODO could make this a generic function that runs models
 
 
-def run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
+def _run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
     """
     Run NWP PV model using one model
 
@@ -53,7 +54,7 @@ def run_one_batch(batch: dict, model: Optional = None) -> pd.DataFrame:
         # format results into dataframe, columns will be
         # "target_datetime_utc"
         # "forecast_kw"
-        # "pv_uuid"
+        # "pv_id"
         results = pd.DataFrame()  # update
 
         results_df.append(results)
