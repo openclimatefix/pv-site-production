@@ -1,7 +1,9 @@
+SRC=pv_site_production
 .PHONY: format
 format:
-	poetry run isort pv_site_production
-	poetry run black pv_site_production
+	poetry run flake8 $(SRC)
+	poetry run isort $(SRC)
+	poetry run black $(SRC)
 
 .PHONY: test
 test:

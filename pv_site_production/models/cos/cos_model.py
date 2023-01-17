@@ -12,7 +12,6 @@ ___/       \____
 
 import os
 import pathlib
-import sys
 from typing import List, Optional
 
 import pandas as pd
