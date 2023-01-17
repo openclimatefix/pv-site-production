@@ -1,7 +1,7 @@
 """ Main app """
 import click
 
-from pv_site_production.models.cos.cos_fake_model import run_cos_model
+from pv_site_production.models.cos.cos_model import run_cos_model
 
 # TODO add logging
 

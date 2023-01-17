@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "pv-site-production"
+version = "0.1.0"
+description = ""
+authors = ["Peter Dudfield"]
+readme = "README.md"
+packages = [{include = "pv_site_production"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+ocf-datapipes = "^1.0.19"
+pandera = "^0.13.4"
+pandas = "^1.5.2"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest-cov = "^4.0.0"
+black = "^22.12.0"
+isort = "^5.11.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

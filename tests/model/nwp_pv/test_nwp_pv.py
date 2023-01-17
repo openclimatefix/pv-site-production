@@ -15,7 +15,7 @@ def get_batch():
 def test_run_one_batch():
 
     batch = get_batch()
-    results = nwp_pv.run_one_batch(batch=batch)
+    results = nwp_pv._run_one_batch(batch=batch)
 
     # TODO add asserts
     print(results)

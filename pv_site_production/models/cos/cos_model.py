@@ -11,13 +11,13 @@ ___/       \____
 """
 
 import os
+import pathlib
 import sys
 from typing import List, Optional
 
 import pandas as pd
 from ocf_datapipes.training.simple_pv import simple_pv_datapipe
 from ocf_datapipes.utils.consts import BatchKey
-
 from pv_site_production.models.cos.intensities import make_fake_intensity
 
 
@@ -37,7 +37,9 @@ def run_cos_model(configuration_filename: Optional[str] = None) -> pd.DataFrame:
 
     # set up datapipes
     if configuration_filename is None:
-        configuration_filename = os.path.join(sys.path[0], "configuration.yaml")
+        configuration_filename = os.path.join(
+            pathlib.Path(__file__).parent / "configuration.yaml"
+        )
     data_pipeline = simple_pv_datapipe(configuration_filename=configuration_filename)
 
     # set up dataloader
@@ -54,7 +56,9 @@ def run_cos_model(configuration_filename: Optional[str] = None) -> pd.DataFrame:
 
     # format results into dataframe and validate,
     # change list of dict to dataframe
-    results_df = pd.DataFrame(results, columns=["pv_uuid", "target_datetime_utc", "forecast_kw"])
+    results_df = pd.DataFrame(
+        results, columns=["pv_uuid", "target_datetime_utc", "forecast_kw"]
+    )
 
     return results_df
 
