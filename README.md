@@ -40,9 +40,11 @@ poetry run python pv_site_production/app.py
 - tests
 
 
-## docker tests
-```
-docker stop $(docker ps -a -q)
-docker-compose -f infrastructure/test-docker-compose.yml build
-docker-compose -f infrastructure/test-docker-compose.yml run tests
-```
+## Format the code
+
+    make format
+
+
+## Run the tests
+
+    make test
