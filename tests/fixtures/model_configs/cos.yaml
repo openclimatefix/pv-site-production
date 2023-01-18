@@ -1,0 +1,2 @@
+run_model_func: pv_site_production.models.cos.cos_model.get_model
+pv_path: tests/fixtures/pv_fixture.netcdf
