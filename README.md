@@ -6,7 +6,7 @@ There are various different repos for ML research and development but this repo 
 The main entry point is
 
 ```
-poetry run python pv_site_production/app.py
+poetry run python pv_site_production/scripts/apply_model.py
 ```
 
 ## Installation
@@ -18,13 +18,11 @@ poetry run python pv_site_production/app.py
 
     # Ubuntu
     apt install \
-        libgeos-dev \
-        docker-compose
+        libgeos-dev
 
     # Mac
     brew install \
-        geos \
-        docker-compose
+        geos
 
     # Python dependencies
     poetry install
@@ -32,7 +30,7 @@ poetry run python pv_site_production/app.py
 
 ## Files
 
-- infrastructure: Docker and docker compose files
+- infrastructure: Docker files
 - pv_site_production: Main code folder
     - models: Various models will be in this folder
         - cos: Simple model using time of day
@@ -40,9 +38,10 @@ poetry run python pv_site_production/app.py
 - tests
 
 
-## Format the code
+## Format/lint the code
 
     make format
+    make lint
 
 
 ## Run the tests

@@ -1,12 +1,31 @@
-SRC=pv_site_production
+SRC=pv_site_production tests
+
+.PHONY: lint
+lint:
+	poetry run flake8 $(SRC)
+	poetry run pydocstyle $(SRC)
+
+
 .PHONY: format
 format:
-	poetry run flake8 $(SRC)
 	poetry run isort $(SRC)
 	poetry run black $(SRC)
 
+# TODO Use testcontainers instead.
+.PHONY: test-db
+test-db:
+	docker kill psp-test-db; true
+	docker run \
+		-it --rm \
+		-d \
+		--name psp-test-db \
+		-e POSTGRES_USER=postgres-test \
+		-e POSTGRES_PASSWORD=postgres-test \
+		-e POSTGRES_DB=psp-test \
+		-p 5460:5432 \
+		postgres:13-alpine
+
 .PHONY: test
-test:
-	docker stop $(docker ps -a -q); true
-	docker-compose -f infrastructure/test-docker-compose.yml build
-	docker-compose -f infrastructure/test-docker-compose.yml run tests
+test: test-db
+	poetry run pytest --cov=pv_site_production tests --cov-report xml $(ARGS)
+	docker kill psp-test-db; true

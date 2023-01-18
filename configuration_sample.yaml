@@ -1,0 +1,16 @@
+# Sample configuration to use with `scripts/apply_model.py`.
+
+run_model_func: pv_site_production.models.psp.psp_model.get_model
+model_path: path/to/model.pkl
+
+nwp:
+  cls: pv_site_production.data.nwp_data_sources.NwpDataSource
+  kwargs:
+    path: s3://nowcasting-nwp-development/data/latest.netcdf
+    storage_kwargs:
+      key: <aws key>
+      secret: <asw secret>
+
+pv_metadata_path: ./meta_inferred.csv
+
+pv_db_url: 'postgresql+psycopg2://<user>:<password>@<host>:<port>/<db_name>'

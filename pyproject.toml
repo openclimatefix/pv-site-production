@@ -7,10 +7,12 @@ readme = "README.md"
 packages = [{include = "pv_site_production"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 ocf-datapipes = "^1.0.19"
 pandera = "^0.13.4"
 pandas = "^1.5.2"
+psp = {path = "./pv-site-prediction", develop = true}
+s3fs = "^2022.11.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -18,7 +20,16 @@ pytest-cov = "^4.0.0"
 black = "^22.12.0"
 isort = "^5.11.4"
 flake8 = "^6.0.0"
+ipython = "^8.8.0"
+pydocstyle = "^6.3.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = 'black'
+
+[tool.pydocstyle]
+convention = 'google'
+add-ignore = 'D200,D202,D210,D212,D415,D105'
