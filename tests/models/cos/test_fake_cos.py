@@ -1,7 +1,7 @@
 import tempfile
-import pytest
 from datetime import datetime
 
+import pytest
 from freezegun import freeze_time
 from ocf_datapipes.batch.fake.fake_batch import make_fake_batch
 from ocf_datapipes.config.model import PV, Configuration, PVFiles
@@ -9,9 +9,7 @@ from ocf_datapipes.config.save import save_yaml_configuration
 
 from pv_site_production.models.cos.cos_model import (
     make_fake_intensity,
-    # run_cos_model,
-    # run_one_batch,
-)
+)  # run_cos_model,; run_one_batch,
 
 
 def test_make_fake_intensities():
@@ -26,25 +24,28 @@ def test_make_fake_intensities():
 # export PYTHONPATH=${PYTHONPATH}:/pv_site_production
 
 
-@pytest.mark.skip('TODO')
+@pytest.mark.skip("TODO")
 def test_run_one_batch():
     configuration = Configuration()
     configuration.input_data.pv = PV(history_minutes=60, forecast_minutes=60 * 24)
 
     batch = make_fake_batch(configuration=configuration)
 
-    results = run_one_batch(batch)
+    results = run_one_batch(batch)  # noqa
 
     assert len(results) == 288 * 32
 
 
-@pytest.mark.skip('TODO')
+@pytest.mark.skip("TODO")
 @freeze_time("2022-01-01 07:00")
 def test_run_cos_model(pv_yields_and_systems):
 
     configuration = Configuration()
     configuration.input_data.pv = PV(
-        history_minutes=60, forecast_minutes=0, pv_files_groups=[PVFiles()], is_live=True
+        history_minutes=60,
+        forecast_minutes=0,
+        pv_files_groups=[PVFiles()],
+        is_live=True,
     )
 
     # TODO need to add fake PV database, thate
@@ -55,4 +56,4 @@ def test_run_cos_model(pv_yields_and_systems):
         # save default config to file
         save_yaml_configuration(configuration, filename)
 
-        run_cos_model(configuration_filename=filename)
+        run_cos_model(configuration_filename=filename)  # noqa

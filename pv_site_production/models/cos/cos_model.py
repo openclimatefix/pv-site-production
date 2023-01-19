@@ -31,7 +31,7 @@ class CosModel(PvSiteModel):
         return Y(powers=[make_fake_intensity(ts) for ts in tss])
 
 
-def get_model(config: pathlib.Path) -> PvSiteModel:
+def get_model(config: pathlib.Path, pv_data_source) -> PvSiteModel:
     model_config = PvSiteModelConfig(
         # 15 minute itervervals for 48 hours.
         future_intervals=[(i * 15, (i + 1) * 15) for i in range(4 * 48)],

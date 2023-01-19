@@ -1,11 +1,11 @@
 """
 Fixtures for testing
 """
-import os
-import tempfile
+# import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
+import sqlalchemy
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import (
     Base_PV,
@@ -18,26 +18,28 @@ from nowcasting_datamodel.models import (
 )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session", autouse=True)
 def db_connection():
     """Create data connection"""
+    url = "postgresql+psycopg2://postgres-test:postgres-test@localhost:5460/psp-test"
 
-    with tempfile.NamedTemporaryFile(suffix=".db") as temp:
-        url = f"sqlite:///{temp.name}"
-        os.environ["DB_URL_PV"] = url
+    # os.environ["DB_URL_PV"] = url
 
-        connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
+    connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
 
-        for table in [PVYieldSQL, PVSystemSQL]:
-            table.__table__.create(connection.engine)
+    for table in [PVSystemSQL, PVYieldSQL]:
+        table.__table__.create(connection.engine)
 
-        yield connection
+    yield connection
 
-        for table in [PVYieldSQL, PVSystemSQL]:
-            table.__table__.drop(connection.engine)
+    # Psql won't let us drop the tables if any sessions are still opened.
+    sqlalchemy.orm.close_all_sessions()
+
+    for table in [PVYieldSQL, PVSystemSQL]:
+        table.__table__.drop(connection.engine)
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture()
 def db_session(db_connection):
     """Creates a new database session for a test."""
 
@@ -53,8 +55,8 @@ def db_session(db_connection):
     connection.close()
 
 
-@pytest.fixture()
-def pv_yields_and_systems(db_session):
+@pytest.fixture(scope="session", autouse=True)
+def pv_yields_and_systems(db_connection):
     """Create pv yields and systems
 
     Pv systems: Two systems
@@ -63,9 +65,11 @@ def pv_yields_and_systems(db_session):
         For system 2: 1 pv yield at 04.00
     """
 
+    db_session = db_connection.get_session()
+
     pv_system_sql_1: PVSystemSQL = PVSystem(
         pv_system_id=1,
-        provider="pvoutput.org",
+        provider=pv_output,
         status_interval_minutes=5,
         longitude=0,
         latitude=55,
@@ -81,7 +85,7 @@ def pv_yields_and_systems(db_session):
     ).to_orm()
     pv_system_sql_2: PVSystemSQL = PVSystem(
         pv_system_id=2,
-        provider="pvoutput.org",
+        provider=pv_output,
         status_interval_minutes=5,
         longitude=0,
         latitude=56,
@@ -117,7 +121,8 @@ def pv_yields_and_systems(db_session):
     for minutes in [0, 10, 20, 30]:
 
         pv_yield_4 = PVYield(
-            datetime_utc=datetime(2022, 1, 1, 4, tzinfo=timezone.utc) + timedelta(minutes=minutes),
+            datetime_utc=datetime(2022, 1, 1, 4, tzinfo=timezone.utc)
+            + timedelta(minutes=minutes),
             solar_generation_kw=4,
         ).to_orm()
         pv_yield_4.pv_system = pv_system_sql_2
@@ -125,7 +130,8 @@ def pv_yields_and_systems(db_session):
 
     # add a system with only on pv yield
     pv_yield_5 = PVYield(
-        datetime_utc=datetime(2022, 1, 1, 4, tzinfo=timezone.utc) + timedelta(minutes=minutes),
+        datetime_utc=datetime(2022, 1, 1, 4, tzinfo=timezone.utc)
+        + timedelta(minutes=minutes),
         solar_generation_kw=4,
     ).to_orm()
     pv_yield_5.pv_system = pv_system_sql_3
@@ -138,7 +144,4 @@ def pv_yields_and_systems(db_session):
 
     db_session.commit()
 
-    return {
-        "pv_yields": pv_yield_sqls,
-        "pv_systems": [pv_system_sql_1, pv_system_sql_2],
-    }
+    db_session.close()
