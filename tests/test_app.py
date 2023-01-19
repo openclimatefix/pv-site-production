@@ -3,6 +3,7 @@ import traceback
 
 import pytest
 from click.testing import CliRunner
+
 from pv_site_production.app import run
 
 CONFIG_FIXTURES = [
