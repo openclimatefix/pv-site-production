@@ -18,8 +18,6 @@ COPY ./pv_site_production /app/pv_site_production
 COPY ./tests /app/tests
 
 # install files
-RUN ls
-RUN ls
 RUN poetry install
 
 # make sure 'src' is in python path - this is so imports work
