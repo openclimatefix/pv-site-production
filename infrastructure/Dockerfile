@@ -18,12 +18,12 @@ RUN git submodule update --init --recursive
 # set working directory
 WORKDIR /app
 
+# install files
+RUN poetry install
+
 # copy main files
 COPY ./pv_site_production /app/pv_site_production
 COPY ./tests /app/tests
-
-# install files
-RUN poetry install
 
 # make sure 'src' is in python path - this is so imports work
 ENV PYTHONPATH=${PYTHONPATH}:/app/pv_site_production
