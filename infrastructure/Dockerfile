@@ -8,6 +8,7 @@ RUN apt-get install gcc g++ libgeos-dev -y
 # copy files requirements
 COPY ./pyproject.toml /app/pyproject.toml
 COPY ./poetry.lock /app/poetry.lock
+COPY ./README.md /app/README.md
 RUN pip install -U pip poetry
 
 # set working directory
