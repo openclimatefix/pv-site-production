@@ -173,12 +173,24 @@ def import_from_module(module_path: str) -> Any:
     type=click.Path(path_type=pathlib.Path),
     help="Config defining the model to use and its parameters.",
 )
+@click.option(
+    "--date",
+    "-d",
+    'timestamp',
+    type=click.DateTime(formats=["%Y-%m-%d-%H-%M"]),
+    default=None,
+    help='Date-time (UTC) at which to make the prediction. Defaults to "now".',
+)
 def run(
     config_path: pathlib.Path,
+    timestamp: datetime | None ,
 ):
     """Make app method"""
     with open(config_path) as f:
         config = yaml.safe_load(f)
+
+    if timestamp is None:
+        timestamp = datetime.utcnow()
 
     get_model = import_from_module(config["run_model_func"])
 
@@ -195,11 +207,8 @@ def run(
 
     pv_ids = [p.pv_system_id for p in pv_systems]
 
-    # TODO support passing a different date.
-    now = datetime(2022, 1, 1, 6)
-
     # TODO make sure `run_model` accept a config object and not a path.
-    results_df = apply_model(model, pv_ids=pv_ids, ts=now)
+    results_df = apply_model(model, pv_ids=pv_ids, ts=timestamp)
 
     # TODO
     print(results_df)
