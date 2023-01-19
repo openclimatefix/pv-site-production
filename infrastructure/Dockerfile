@@ -12,6 +12,7 @@ COPY ./README.md /app/README.md
 RUN pip install -U pip poetry
 
 # pull sub module
+COPY ./.git /.git
 RUN git submodule update --init --recursive
 
 # set working directory
