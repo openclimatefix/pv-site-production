@@ -13,11 +13,8 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
 
-      - name: Build Docker image
-        run: docker-compose -f infrastructure/test-docker-compose.yml build
-
       - name: Run tests inside the container
-        run: docker-compose -f infrastructure/test-docker-compose.yml run tests
+        run: make test
 
       - name: Copy coverage
         run: |
