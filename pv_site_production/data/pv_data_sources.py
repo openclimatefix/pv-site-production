@@ -103,6 +103,8 @@ class DbPvDataSource(PvDataSource):
         with self._db_connection.get_session() as session:
             pv_systems = get_pv_systems(session=session, provider=SHEFFIELD)
         pv_ids = [p.pv_system_id for p in pv_systems]
+        # Only keep the pv_ids for which we have metadata.
+        pv_ids = [pv_id for pv_id in pv_ids if pv_id in self._meta]
         return pv_ids
 
     def min_ts(self) -> Timestamp:
@@ -112,5 +114,5 @@ class DbPvDataSource(PvDataSource):
         raise NotImplementedError
 
     def without_future(self, ts: Timestamp, *, blackout: int = 0):
-        # TODO Do we need to cut anything for prod?
+        # FIXME Implement this
         return self

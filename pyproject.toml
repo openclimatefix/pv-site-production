@@ -12,6 +12,7 @@ ocf-datapipes = "^1.0.19"
 pandera = "^0.13.4"
 pandas = "^1.5.2"
 psp = {path = "./pv-site-prediction", develop = true}
+s3fs = "^2022.11.0"
 
 
 

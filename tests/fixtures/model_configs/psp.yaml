@@ -1,5 +1,10 @@
 run_model_func: pv_site_production.models.psp.psp_model.get_model
-nwp_path: tests/fixtures/nwp_fixture.zarr
+
+nwp:
+  cls: pv_site_production.data.nwp_data_sources.NwpDataSource
+  kwargs:
+    path: tests/fixtures/nwp_fixture.zarr
+
 model_path: tests/fixtures/psp_model_fixture.pkl
 
 pv_db_url: "postgresql+psycopg2://postgres-test:postgres-test@localhost:5460/psp-test"

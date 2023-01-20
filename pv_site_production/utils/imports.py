@@ -13,3 +13,12 @@ def import_from_module(module_path: str) -> Any:
     """
     module, obj_name = module_path.rsplit(".", maxsplit=1)
     return getattr(importlib.import_module(module), obj_name)
+
+
+def instantiate(cls, args=None, kwargs=None) -> Any:
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = {}
+    class_ = import_from_module(cls)
+    return class_(*args, **kwargs)
