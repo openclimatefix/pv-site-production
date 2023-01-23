@@ -23,8 +23,6 @@ def db_connection():
     """Create data connection"""
     url = "postgresql+psycopg2://postgres-test:postgres-test@localhost:5460/psp-test"
 
-    # os.environ["DB_URL_PV"] = url
-
     connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
 
     for table in [PVSystemSQL, PVYieldSQL]:

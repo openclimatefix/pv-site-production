@@ -6,7 +6,6 @@ format:
 	poetry run isort $(SRC)
 	poetry run black $(SRC)
 
-
 .PHONY: test-db
 test-db:
 	docker kill psp-test-db; true
@@ -20,12 +19,7 @@ test-db:
 		-p 5460:5432 \
 		postgres:13-alpine
 
-
 .PHONY: test
 test: test-db
 	poetry run pytest tests $(ARGS)
 	docker kill psp-test-db
-	# TODO PUT BACK the docker-compose test
-	# docker stop $(docker ps -a -q); true
-	# docker-compose -f infrastructure/test-docker-compose.yml build
-	# docker-compose -f infrastructure/test-docker-compose.yml run tests

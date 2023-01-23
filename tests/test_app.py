@@ -19,13 +19,5 @@ def test_app(config_file: pathlib.Path):
     result = runner.invoke(
         run,
         ["--config", config_file, "--date", "2022-1-1-06-00"],
-        catch_exceptions=True,
     )
-    # print('OUTPUT')
-    # print(result.output)
-    # print('EXC INFO')
-    # print(result.exc_info)
-    # print('EXCEPTION')
-    if result.exception:
-        traceback.print_exception(result.exception)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, traceback.print_exception(result.exception)

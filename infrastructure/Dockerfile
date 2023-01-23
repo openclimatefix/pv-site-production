@@ -20,6 +20,7 @@ WORKDIR /app
 
 # copy main files
 COPY ./pv_site_production /app/pv_site_production
+COPY ./pv-site-prediction /app/pv-site-prediction
 COPY ./tests /app/tests
 
 # install files
