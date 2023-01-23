@@ -1,12 +1,13 @@
+import copy
 import pathlib
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from nowcasting_datamodel.models.pv import PVYield
 from nowcasting_datamodel.models.pv import solar_sheffield_passiv as SHEFFIELD
 from nowcasting_datamodel.read.read_pv import get_pv_systems, get_pv_yield
-from psp.data.data_sources.pv import PvDataSource
+from psp.data.data_sources.pv import PvDataSource, min_timestamp
 from psp.ml.typings import PvId, Timestamp
 
 # Meta keys that are stil taken from our metadata file.
@@ -25,12 +26,18 @@ class DbPvDataSource(PvDataSource):
             for _, row in pd.read_csv(metadata_path).iterrows()
         }
 
+        # We'll ignore anything after that date. This is set in the `without_future` method.
+        self._max_ts: Timestamp | None = None
+
     def get(
         self,
         pv_ids: list[PvId] | PvId,
         start_ts: Timestamp | None = None,
         end_ts: Timestamp | None = None,
     ) -> xr.Dataset:
+
+        if self._max_ts is not None:
+            end_ts = min_timestamp(self._max_ts, end_ts)
 
         # TODO The fact that we have to check for two types tells me something does not get checked
         # properly somewhere!
@@ -51,23 +58,27 @@ class DbPvDataSource(PvDataSource):
                 providers=[SHEFFIELD],
             )
 
-        records = [(PVYield.from_orm(pv_yield)).__dict__ for pv_yield in pv_yields]
-
         # Build a pandas dataframe of pv_id, timestamp and power. This makes it easy to convert to
         # an xarray.
         df = pd.DataFrame.from_records(
             {
-                "pv_id": r["pv_system"].pv_system_id,
+                "pv_id": y.pv_system.pv_system_id,
                 # We remove the timezone information since otherwise the timestamp index gets
                 # converted to an "object" index later. In any case we should have everything in
                 # UTC.
-                "ts": r["datetime_utc"].replace(tzinfo=None),
-                "power": r["solar_generation_kw"],
+                "ts": y.datetime_utc.replace(tzinfo=None),
+                "power": y.solar_generation_kw,
             }
-            for r in records
+            for y in pv_yields
         )
         # Convert it to an xarray.
         df = df.set_index(["pv_id", "ts"])
+
+        # Remove duplicate rows.
+        # TODO This should not be necessary: we should be able to remove it once we insure the
+        # database can not have duplicates.
+        df = df[~df.index.duplicated(keep="first")]
+
         da = xr.Dataset.from_dataframe(df)
 
         # Add the metadata associated with the PV systems.
@@ -75,10 +86,10 @@ class DbPvDataSource(PvDataSource):
         # TODO The info from the metadata file (tilt, orientation and "factor")
         # probably belong to the database!
         meta_from_db = {
-            r["pv_system"].pv_system_id: {
-                key: getattr(r["pv_system"], key) for key in META_DB_KEYS
+            y.pv_system.pv_system_id: {
+                key: getattr(y.pv_system, key) for key in META_DB_KEYS
             }
-            for r in records
+            for y in pv_yields
         }
 
         pv_ids = [int(x) for x in da.coords["pv_id"].values]
@@ -114,5 +125,7 @@ class DbPvDataSource(PvDataSource):
         raise NotImplementedError
 
     def without_future(self, ts: Timestamp, *, blackout: int = 0):
-        # FIXME Implement this
-        return self
+        now = ts - timedelta(minutes=blackout) - timedelta(seconds=1)
+        self_copy = copy.copy(self)
+        self_copy._max_ts = min_timestamp(now, self._max_ts)
+        return self_copy

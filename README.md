@@ -6,7 +6,7 @@ There are various different repos for ML research and development but this repo 
 The main entry point is
 
 ```
-poetry run python pv_site_production/app.py
+poetry run python pv_site_production/scripts/apply_model.py
 ```
 
 ## Installation

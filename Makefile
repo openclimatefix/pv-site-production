@@ -6,6 +6,7 @@ format:
 	poetry run isort $(SRC)
 	poetry run black $(SRC)
 
+# TODO Use testcontainers instead.
 .PHONY: test-db
 test-db:
 	docker kill psp-test-db; true

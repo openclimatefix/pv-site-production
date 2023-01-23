@@ -1,7 +1,6 @@
 """
 Fixtures for testing
 """
-# import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -21,6 +20,8 @@ from nowcasting_datamodel.models import (
 @pytest.fixture(scope="session", autouse=True)
 def db_connection():
     """Create data connection"""
+
+    # This points to our test docker DB defined in the Makefile.
     url = "postgresql+psycopg2://postgres-test:postgres-test@localhost:5460/psp-test"
 
     connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
