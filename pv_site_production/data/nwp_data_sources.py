@@ -1,3 +1,6 @@
+"""
+NWP Data sources
+"""
 import io
 from typing import Any
 
@@ -10,7 +13,10 @@ from psp.data.data_sources.nwp import NwpDataSource as NwpDataSourceBase
 # We adapt it to also support .netcdf files, in particular .netcdf files in the cloud.
 # TODO Implement this into the original NwpDataSource class instead.
 class NwpDataSource(NwpDataSourceBase):
+    """NWP Data source that supports both .zarr and .netcdf locally or in the cloud."""
+
     def __init__(self, path: str, storage_kwargs: dict[str, Any] | None = None):
+        """Constructor"""
         self._path = path
 
         if storage_kwargs is None:

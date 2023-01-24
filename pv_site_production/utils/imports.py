@@ -1,9 +1,14 @@
+"""
+Utils related to imports.
+"""
+
 import importlib
 from typing import Any
 
 
 def import_from_module(module_path: str) -> Any:
-    """
+    """Import object from a dot-separated path.
+
     `func = import_from_module('some.module.func')`
 
     is equivalent to

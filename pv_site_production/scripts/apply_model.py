@@ -39,6 +39,7 @@ def main(
     config_path: pathlib.Path,
     timestamp: datetime | None,
 ):
+    """Main function"""
     with open(config_path) as f:
         config = yaml.safe_load(f)
 

@@ -20,10 +20,14 @@ from pv_site_production.models.cos.intensities import make_fake_intensity
 
 
 class CosModel(PvSiteModel):
+    """Baseline model using a cosine function."""
+
     def get_features(self, x: X) -> Features:
+        """Get a features dictionary from the input."""
         return {"ts": x.ts}
 
     def predict_from_features(self, features: Features) -> Y:
+        """Get the output from features."""
         ts = features["ts"]
         tss = [
             ts + timedelta(minutes=f[1] - f[0]) for f in self.config.future_intervals
@@ -32,6 +36,7 @@ class CosModel(PvSiteModel):
 
 
 def get_model(config: pathlib.Path, pv_data_source) -> PvSiteModel:
+    """Get a ready cosine model."""
     model_config = PvSiteModelConfig(
         # 15 minute itervervals for 48 hours.
         future_intervals=[(i * 15, (i + 1) * 15) for i in range(4 * 48)],

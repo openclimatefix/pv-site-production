@@ -1,3 +1,7 @@
+"""
+Common stuff related to models.
+"""
+
 from datetime import timedelta
 
 import pandas as pd

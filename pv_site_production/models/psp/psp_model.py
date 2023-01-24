@@ -1,3 +1,7 @@
+"""
+Models from the `pv-site-prediction` repo.
+"""
+
 from typing import Any
 
 import pandas as pd
@@ -11,6 +15,7 @@ from pv_site_production.utils.imports import instantiate
 
 
 def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> pd.DataFrame:
+    """Get a serialized pv-site-prediction model."""
     model = load_model(config["model_path"])
 
     nwp_data_source = instantiate(**config["nwp"])

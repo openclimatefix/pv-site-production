@@ -1,8 +1,13 @@
 SRC=pv_site_production tests
 
+.PHONY: lint
+lint:
+	poetry run flake8 $(SRC)
+	poetry run pydocstyle $(SRC)
+
+
 .PHONY: format
 format:
-	poetry run flake8 $(SRC)
 	poetry run isort $(SRC)
 	poetry run black $(SRC)
 

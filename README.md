@@ -40,9 +40,10 @@ poetry run python pv_site_production/scripts/apply_model.py
 - tests
 
 
-## Format the code
+## Format/lint the code
 
     make format
+    make lint
 
 
 ## Run the tests

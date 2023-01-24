@@ -1,3 +1,7 @@
+"""
+PV Data Source
+"""
+
 import copy
 import pathlib
 from datetime import timedelta
@@ -17,7 +21,10 @@ META_DB_KEYS = ["longitude", "latitude"]
 
 
 class DbPvDataSource(PvDataSource):
+    """PV Data Source that reads from our database."""
+
     def __init__(self, db_connection, metadata_path: pathlib.Path):
+        """Constructor"""
         self._db_connection = db_connection
         self._meta = {
             # TODO Standardize the column names.
@@ -35,6 +42,7 @@ class DbPvDataSource(PvDataSource):
         start_ts: Timestamp | None = None,
         end_ts: Timestamp | None = None,
     ) -> xr.Dataset:
+        """Get a slice of data"""
 
         if self._max_ts is not None:
             end_ts = min_timestamp(self._max_ts, end_ts)
@@ -111,6 +119,7 @@ class DbPvDataSource(PvDataSource):
         return da
 
     def list_pv_ids(self) -> list[PvId]:
+        """List all the PV ids"""
         with self._db_connection.get_session() as session:
             pv_systems = get_pv_systems(session=session, provider=SHEFFIELD)
         pv_ids = [p.pv_system_id for p in pv_systems]
@@ -119,12 +128,15 @@ class DbPvDataSource(PvDataSource):
         return pv_ids
 
     def min_ts(self) -> Timestamp:
+        """Return the earliest timestamp of the data."""
         raise NotImplementedError
 
     def max_ts(self) -> Timestamp:
+        """Return the latest timestamp of the data."""
         raise NotImplementedError
 
     def without_future(self, ts: Timestamp, *, blackout: int = 0):
+        """Return a copy that ignores everything after `ts - blackout`."""
         now = ts - timedelta(minutes=blackout) - timedelta(seconds=1)
         self_copy = copy.copy(self)
         self_copy._max_ts = min_timestamp(now, self._max_ts)
