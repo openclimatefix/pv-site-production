@@ -13,6 +13,11 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
 
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.3.2
+
       - name: Run tests inside the container
         run: make test
 
