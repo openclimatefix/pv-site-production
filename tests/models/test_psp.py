@@ -6,7 +6,7 @@ from nowcasting_datamodel.models.base import Base_PV
 from psp.ml.typings import X
 
 from pv_site_production.data.pv_data_sources import DbPvDataSource
-from pv_site_production.models.psp.psp_model import get_model
+from pv_site_production.models.psp import get_model
 
 
 def test_get_model():
