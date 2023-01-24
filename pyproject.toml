@@ -8,12 +8,13 @@ packages = [{include = "pv_site_production"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-ocf-datapipes = "^1.0.19"
 pandera = "^0.13.4"
 pandas = "^1.5.2"
-psp = {path = "./pv-site-prediction", develop = true}
 s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"
+sqlalchemy = "^1.4.46"
+nowcasting-datamodel = "^1.1.62"
+psp = {path = "pv-site-prediction", develop = true}
 
 
 [tool.poetry.group.dev.dependencies]
