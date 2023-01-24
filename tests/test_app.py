@@ -4,7 +4,7 @@ import traceback
 import pytest
 from click.testing import CliRunner
 
-from pv_site_production.scripts.apply_model import main
+from pv_site_production.app import main
 
 CONFIG_FIXTURES = [
     x

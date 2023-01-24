@@ -49,10 +49,11 @@ class DbPvDataSource(PvDataSource):
         # TODO The fact that we have to check for two types tells me something does not get checked
         # properly somewhere!
         if isinstance(pv_ids, (PvId, np.integer)):
-            was_1d = True
+            # Note that this was a scalar.
+            was_scalar = True
             pv_ids = [pv_ids]
         else:
-            was_1d = False
+            was_scalar = False
 
         with self._db_connection.get_session() as session:
             pv_yields = get_pv_yield(
@@ -110,7 +111,9 @@ class DbPvDataSource(PvDataSource):
             }
         )
 
-        if was_1d:
+        # If the input was a scalar, we make sure the output is consistent, by slicing on the
+        # (unique) PV.
+        if was_scalar:
             da = da.isel(pv_id=0)
 
         return da

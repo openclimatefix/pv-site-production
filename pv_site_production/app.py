@@ -35,9 +35,16 @@ _log = logging.getLogger(__name__)
     default=None,
     help='Date-time (UTC) at which to make the prediction. Defaults to "now".',
 )
+@click.option(
+    "--max-pvs",
+    type=int,
+    default=None,
+    help="Maximum number of PVs to treat. This is useful for testing.",
+)
 def main(
     config_path: pathlib.Path,
     timestamp: datetime | None,
+    max_pvs: int | None,
 ):
     """Main function"""
     with open(config_path) as f:
@@ -60,8 +67,9 @@ def main(
     model: PvSiteModel = get_model(config, pv_data_source)
 
     pv_ids = pv_data_source.list_pv_ids()
-    # TODO Run for all the pv_ids
-    pv_ids = pv_ids[:10]
+
+    if max_pvs is not None:
+        pv_ids = pv_ids[:max_pvs]
 
     _log.info("Applying model")
     results_df = apply_model(model, pv_ids=pv_ids, ts=timestamp)
@@ -69,7 +77,7 @@ def main(
     # _log.info('Saving results to database')
     # TODO Save the results to the database. In the meantime we print them.
     for _, row in results_df.iterrows():
-        print(f"{row['target_datetime_utc']}: {row['forecast_kw']}")
+        print(f"{row['pv_uuid']} | {row['target_datetime_utc']} | {row['forecast_kw']}")
 
 
 if __name__ == "__main__":
