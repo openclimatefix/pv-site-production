@@ -3,17 +3,19 @@ Apply the model to the PVs in the database and note the results.
 """
 
 import logging
+import os
 import pathlib
 from datetime import datetime
 
 import click
-import yaml
+import dotenv
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models.base import Base_PV
 from psp.ml.models.base import PvSiteModel
 
 from pv_site_production.data.pv_data_sources import DbPvDataSource
 from pv_site_production.models.common import apply_model
+from pv_site_production.utils.config import load_config
 from pv_site_production.utils.imports import import_from_module
 
 _log = logging.getLogger(__name__)
@@ -47,8 +49,13 @@ def main(
     max_pvs: int | None,
 ):
     """Main function"""
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
+
+    _log.debug("Load the configuration file")
+    # Typically the configuration will contain many placeholders pointing to environment variables.
+    # We allow specifying them in a .env file. See the .env.dist for a list of expected variables.
+    # Environment variables still have precedence.
+    dotenv_variables = dotenv.dotenv_values()
+    config = load_config(config_path, dotenv_variables | os.environ)
 
     if timestamp is None:
         timestamp = datetime.utcnow()

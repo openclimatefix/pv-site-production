@@ -1,6 +1,8 @@
 """
 Fixtures for testing
 """
+
+import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -15,27 +17,29 @@ from nowcasting_datamodel.models import (
     pv_output,
     solar_sheffield_passiv,
 )
+from testcontainers.postgres import PostgresContainer
 
 
 @pytest.fixture(scope="session", autouse=True)
 def db_connection():
     """Create data connection"""
 
-    # This points to our test docker DB defined in the Makefile.
-    url = "postgresql+psycopg2://postgres-test:postgres-test@localhost:5460/psp-test"
+    with PostgresContainer("postgres:14.5") as postgres:
+        url = postgres.get_connection_url()
+        os.environ["OCF_PV_DB_URL"] = url
 
-    connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
+        connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
 
-    for table in [PVSystemSQL, PVYieldSQL]:
-        table.__table__.create(connection.engine)
+        for table in [PVSystemSQL, PVYieldSQL]:
+            table.__table__.create(connection.engine)
 
-    yield connection
+        yield connection
 
-    # Psql won't let us drop the tables if any sessions are still opened.
-    sqlalchemy.orm.close_all_sessions()
+        # Psql won't let us drop the tables if any sessions are still opened.
+        sqlalchemy.orm.close_all_sessions()
 
-    for table in [PVYieldSQL, PVSystemSQL]:
-        table.__table__.drop(connection.engine)
+        for table in [PVYieldSQL, PVSystemSQL]:
+            table.__table__.drop(connection.engine)
 
 
 @pytest.fixture()

@@ -13,6 +13,7 @@ pandera = "^0.13.4"
 pandas = "^1.5.2"
 psp = {path = "./pv-site-prediction", develop = true}
 s3fs = "^2022.11.0"
+python-dotenv = "^0.21.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -22,6 +23,7 @@ isort = "^5.11.4"
 flake8 = "^6.0.0"
 ipython = "^8.8.0"
 pydocstyle = "^6.3.0"
+testcontainers = "^3.7.1"
 
 [build-system]
 requires = ["poetry-core"]

@@ -7,7 +7,7 @@ nwp:
 
 model_path: tests/fixtures/psp_model_fixture.pkl
 
-pv_db_url: "postgresql+psycopg2://postgres-test:postgres-test@localhost:5460/psp-test"
+pv_db_url: ${OCF_PV_DB_URL}
 
 # This should eventually live in the database but we have some inferred metadata in there.
 pv_metadata_path: tests/fixtures/pv_metadata.csv

@@ -1,0 +1,11 @@
+run_model_func: pv_site_production.models.psp.psp_model.get_model
+model_path: dev_model.pkl
+
+nwp:
+  cls: pv_site_production.data.nwp_data_sources.NwpDataSource
+  kwargs:
+    path: s3://nowcasting-nwp-development/data/latest.netcdf
+
+pv_metadata_path: ./meta_inferred.csv
+
+pv_db_url: ${OCF_PV_DB_URL}

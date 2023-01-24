@@ -11,21 +11,6 @@ format:
 	poetry run isort $(SRC)
 	poetry run black $(SRC)
 
-# TODO Use testcontainers instead.
-.PHONY: test-db
-test-db:
-	docker kill psp-test-db; true
-	docker run \
-		-it --rm \
-		-d \
-		--name psp-test-db \
-		-e POSTGRES_USER=postgres-test \
-		-e POSTGRES_PASSWORD=postgres-test \
-		-e POSTGRES_DB=psp-test \
-		-p 5460:5432 \
-		postgres:13-alpine
-
 .PHONY: test
-test: test-db
+test:
 	poetry run pytest --cov=pv_site_production tests --cov-report xml $(ARGS)
-	docker kill psp-test-db; true
