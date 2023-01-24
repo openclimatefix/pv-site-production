@@ -27,5 +27,5 @@ test-db:
 
 .PHONY: test
 test: test-db
-	poetry run pytest tests $(ARGS)
-	docker kill psp-test-db
+	poetry run pytest --cov=pv_site_production tests $(ARGS)
+	docker kill psp-test-db; true

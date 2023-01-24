@@ -18,13 +18,11 @@ poetry run python pv_site_production/scripts/apply_model.py
 
     # Ubuntu
     apt install \
-        libgeos-dev \
-        docker-compose
+        libgeos-dev
 
     # Mac
     brew install \
-        geos \
-        docker-compose
+        geos
 
     # Python dependencies
     poetry install
@@ -32,7 +30,7 @@ poetry run python pv_site_production/scripts/apply_model.py
 
 ## Files
 
-- infrastructure: Docker and docker compose files
+- infrastructure: Docker files
 - pv_site_production: Main code folder
     - models: Various models will be in this folder
         - cos: Simple model using time of day
