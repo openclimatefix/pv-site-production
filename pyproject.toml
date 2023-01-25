@@ -25,6 +25,9 @@ flake8 = "^6.0.0"
 ipython = "^8.8.0"
 pydocstyle = "^6.3.0"
 testcontainers = "^3.7.1"
+mypy = "^0.991"
+pandas-stubs = "^1.5.2.230105"
+types-pyyaml = "^6.0.12.3"
 
 [build-system]
 requires = ["poetry-core"]
@@ -36,3 +39,7 @@ profile = 'black'
 [tool.pydocstyle]
 convention = 'google'
 add-ignore = 'D200,D202,D210,D212,D415,D105'
+
+[tool.mypy]
+check_untyped_defs = true
+ignore_missing_imports = true

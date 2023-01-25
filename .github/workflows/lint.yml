@@ -3,3 +3,22 @@ on: [push]
 jobs:
   call-run-python-linters:
     uses: openclimatefix/.github/.github/workflows/python-lint.yml@main
+
+  # The previous job does most of the work but we don't have an OCF workflow for mytype yet so we
+  # specify it here.
+  mypy:
+    name: Run mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy
+          # This is not super clean but we need to have those "type stubs" dependencies both in
+          # pyproject.toml and in here.
+          pip install types-pyyaml pandas-stubs
+      - name: Run mypy
+        run: mypy pv_site_production tests

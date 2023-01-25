@@ -4,6 +4,7 @@ SRC=pv_site_production tests
 lint:
 	poetry run flake8 $(SRC)
 	poetry run pydocstyle $(SRC)
+	poetry run mypy $(SRC)
 
 
 .PHONY: format

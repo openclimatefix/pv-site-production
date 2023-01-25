@@ -10,9 +10,11 @@ ___/       \____
 
 """
 
-import pathlib
 from datetime import timedelta
+from typing import Any
 
+import numpy as np
+from psp.data.data_sources.pv import PvDataSource
 from psp.ml.models.base import PvSiteModel, PvSiteModelConfig
 from psp.ml.typings import Features, X, Y
 
@@ -32,10 +34,13 @@ class CosModel(PvSiteModel):
         tss = [
             ts + timedelta(minutes=f[1] - f[0]) for f in self.config.future_intervals
         ]
-        return Y(powers=[make_fake_intensity(ts) for ts in tss])
+        powers = np.array([make_fake_intensity(ts) for ts in tss])
+        return Y(powers=powers)
 
 
-def get_model(config: pathlib.Path, pv_data_source) -> PvSiteModel:
+def get_model(
+    config: dict[str, Any], pv_data_source: PvDataSource | None
+) -> PvSiteModel:
     """Get a ready cosine model."""
     model_config = PvSiteModelConfig(
         # 15 minute itervervals for 48 hours.

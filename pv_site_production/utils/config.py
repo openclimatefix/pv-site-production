@@ -18,6 +18,7 @@ def load_config_from_string(config: str, context: dict[str, str] | None = None) 
 
     def string_constructor(loader, node):
         t = string.Template(node.value)
+        assert context is not None
         value = t.substitute(context)
         return value
 
@@ -45,4 +46,4 @@ def load_config(config: pathlib.Path, context: dict[str, str] | None = None) -> 
         The configuration object.
     """
     with open(config) as f:
-        return load_config_from_string(f, context)
+        return load_config_from_string(f.read(), context)
