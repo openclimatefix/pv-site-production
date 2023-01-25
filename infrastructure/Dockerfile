@@ -21,10 +21,10 @@ WORKDIR /app
 # copy main files
 COPY ./pv_site_production /app/pv_site_production
 COPY ./pv-site-prediction /app/pv-site-prediction
-COPY ./tests /app/tests
+# COPY ./tests /app/tests
 
 # install files
-RUN poetry install
+RUN poetry install --without dev
 
 # make sure 'src' is in python path - this is so imports work
 ENV PYTHONPATH=${PYTHONPATH}:/app/pv_site_production
