@@ -9,7 +9,7 @@ RUN apt-get install gcc g++ libgeos-dev -y git
 COPY ./pyproject.toml /app/pyproject.toml
 COPY ./poetry.lock /app/poetry.lock
 COPY ./README.md /app/README.md
-COPY ./configurations/aws_conf.yaml /app/aws_conf.yaml
+COPY ./configurations/aws_config.yaml /app/configuration.yaml
 RUN pip install -U pip poetry
 
 # copy main files
