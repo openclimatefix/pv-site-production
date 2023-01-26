@@ -20,7 +20,7 @@ RUN ls
 WORKDIR /app
 
 # copy main files
-COPY ./pv-site-prediction /app/pv-site-prediction
+COPY ./pv_site_production /app/pv_site_production
 RUN cd pv-site-prediction
 RUN ls
 Run cd ../
