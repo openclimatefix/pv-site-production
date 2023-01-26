@@ -11,7 +11,7 @@ from psp.ml.serialization import load_model
 
 from pv_site_production.utils.imports import instantiate
 
-_log = logging.getLogger()
+_log = logging.getLogger(__name__)
 
 
 def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> PvSiteModel:
