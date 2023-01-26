@@ -20,11 +20,10 @@ WORKDIR /app
 
 # copy main files
 COPY ./pv_site_production /app/pv_site_production
-RUN cd pv_site_production
+COPY ./pv-site-prediction /app/pv-site-prediction
+RUN cd pv-site-prediction
 RUN ls
 Run cd ../
-
-COPY ./pv-site-prediction /app/pv-site-prediction
 COPY ./tests /app/tests
 
 # install files
