@@ -40,6 +40,6 @@ class NwpDataSource(NwpDataSourceBase):
                 with io.BytesIO(file_bytes) as f:
                     self._data = xr.load_dataset(f, engine="h5netcdf")
             else:
-                raise NotImplementedError
+                self._data = xr.load_dataset(path, engine="h5netcdf")
         else:
             raise NotImplementedError

@@ -69,7 +69,7 @@ class DbPvDataSource(PvDataSource):
 
             self._meta[site_uuid] = {key: row[key] for key in META_FILE_KEYS}
 
-        print(self._meta)
+        _log.debug(self._meta)
 
         # We'll ignore anything after that date. This is set in the `without_future` method.
         self._max_ts: Timestamp | None = None
@@ -85,6 +85,9 @@ class DbPvDataSource(PvDataSource):
         if self._max_ts is not None:
             end_ts = min_timestamp(self._max_ts, end_ts)
 
+        # only load one day
+        start_ts = end_ts - timedelta(days=1)
+
         # TODO The fact that we have to check for two types tells me something does not get checked
         # properly somewhere!
         if isinstance(pv_ids, (PvId, np.integer, str)):
@@ -97,7 +100,7 @@ class DbPvDataSource(PvDataSource):
         with self._session_factory() as session:
             # FIXME change variable names to reflresh the database objects.
 
-            print(f"Getting data from {start_ts} to {end_ts} for {pv_ids}")
+            _log.debug(f"Getting data from {start_ts} to {end_ts} for {pv_ids}")
 
             site_uuids = [UUID(pv_id) for pv_id in pv_ids]
 
@@ -108,6 +111,8 @@ class DbPvDataSource(PvDataSource):
                 site_uuids=site_uuids,
             )
 
+            _log.debug(f'Found {len(generations)} generation data for {pv_ids}')
+
             assert len(generations) > 0, (
                 f"There were no generations for {site_uuids} " f"from  {start_ts} to {end_ts}"
             )
@@ -115,6 +120,7 @@ class DbPvDataSource(PvDataSource):
             # Build a pandas dataframe of pv_id, timestamp and power.
             # This makes it easy to convert to
             # an xarray.
+            _log.debug(f'Make into dataframe')
             df = pd.DataFrame.from_records(
                 {
                     "pv_id": str(g.site_uuid),
@@ -130,6 +136,8 @@ class DbPvDataSource(PvDataSource):
                 for g in generations
             )
 
+            _log.debug(f'Made into dataframe')
+
             # Convert it to an xarray.
             df = df.set_index(["pv_id", "ts"])
 
@@ -142,12 +150,14 @@ class DbPvDataSource(PvDataSource):
 
             # Add the metadata associated with the PV systems.
             # Some come from the database, and some from a separate metadata file.
+            _log.debug('Getting metadata data from database')
             meta_from_db = {
                 # FIXME there might be a missing relationship here and we need to make sure it is
                 # not lazy loaded.
                 str(g.site_uuid): {key: getattr(g.site, key) for key in META_DB_KEYS}
                 for g in generations
             }
+            _log.debug('Getting metadata data from database:done')
 
         pv_ids = [str(x) for x in da.coords["pv_id"].values]
 
@@ -168,6 +178,8 @@ class DbPvDataSource(PvDataSource):
         if was_scalar:
             da = da.isel(pv_id=0)
 
+        _log.debug('Got PV data')
+
         return da
 
     def list_pv_ids(self) -> list[PvId]:
@@ -175,16 +187,16 @@ class DbPvDataSource(PvDataSource):
         with self._session_factory() as session:
             query = session.query(SiteSQL.site_uuid)
             pv_ids = [str(row.site_uuid) for row in query]
-        print("site_uuids from DB")
-        print(pv_ids)
-        print("site_uuids from meta")
-        print(list(self._meta.keys()))
+        _log.debug("site_uuids from DB")
+        _log.debug(pv_ids)
+        _log.debug("site_uuids from meta")
+        _log.debug(list(self._meta.keys()))
         #     mapping = {row.client_site_id: row.site_uuid for row in query}
         # pv_ids = _list_site_ids_by_client(session, self._client_uuid)
         # Only keep the pv_ids for which we have metadata.
         pv_ids = [pv_id for pv_id in pv_ids if pv_id in self._meta]
-        print("pv_ids left")
-        print(pv_ids)
+        _log.debug("pv_ids left")
+        _log.debug(pv_ids)
         return pv_ids
 
     def min_ts(self) -> Timestamp:
