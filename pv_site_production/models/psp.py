@@ -25,6 +25,8 @@ def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> PvSiteMod
 
     # TODO Make the setup step uniform across all `psp` models. In other words it should be defined
     # directly in `PvSiteModel`.
-    model.setup(SetupConfig(pv_data_source=pv_data_source, nwp_data_source=nwp_data_source))
+    model.setup(
+        SetupConfig(pv_data_source=pv_data_source, nwp_data_source=nwp_data_source)
+    )
 
     return model
