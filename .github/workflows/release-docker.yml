@@ -1,8 +1,6 @@
 name: Bump version and auto-release (docker)
 on:
-  push:
-    branches:
-      - main
+  push
 
 jobs:
   call-run-docker-release:
