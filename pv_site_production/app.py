@@ -18,6 +18,10 @@ from pv_site_production.models.common import apply_model
 from pv_site_production.utils.config import load_config
 from pv_site_production.utils.imports import import_from_module
 
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOGLEVEL", "DEBUG")),
+    format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+)
 _log = logging.getLogger(__name__)
 
 
