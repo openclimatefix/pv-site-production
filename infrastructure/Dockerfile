@@ -9,7 +9,7 @@ RUN apt-get install gcc g++ libgeos-dev -y git
 COPY ./pyproject.toml /app/pyproject.toml
 COPY ./poetry.lock /app/poetry.lock
 COPY ./README.md /app/README.md
-COPY ./configuration_sample.yaml /app/configuration.yaml
+COPY ./configurations/aws_conf.yaml /app/aws_conf.yaml
 RUN pip install -U pip poetry
 
 # copy main files
@@ -33,4 +33,4 @@ RUN poetry install
 # make sure 'src' is in python path - this is so imports work
 ENV PYTHONPATH=${PYTHONPATH}:/app/pv_site_production
 
-ENTRYPOINT ["python", "pv_site_production/app.py", "-c", "configuration.yaml"]
+ENTRYPOINT ["python", "pv_site_production/app.py", "-c", "aws_conf.yaml"]
