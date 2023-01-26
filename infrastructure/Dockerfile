@@ -11,15 +11,15 @@ COPY ./poetry.lock /app/poetry.lock
 COPY ./README.md /app/README.md
 RUN pip install -U pip poetry
 
-# pull sub module
+# pull sub module, this should make the folder 'pv-site-prediction'
 COPY ./.git /.git
 RUN git submodule update --init --recursive
+RUN ls
 
 # set working directory
 WORKDIR /app
 
 # copy main files
-COPY ./pv_site_production /app/pv_site_production
 COPY ./pv-site-prediction /app/pv-site-prediction
 RUN cd pv-site-prediction
 RUN ls
