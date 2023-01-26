@@ -25,6 +25,8 @@ RUN git submodule update --init --recursive
 
 # verbose
 COPY ./pv-site-prediction /app/pv-site-prediction
+RUN ls /app/
+RUN ls /app/pv-site-prediction
 
 # install files
 RUN poetry install
