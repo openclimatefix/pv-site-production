@@ -71,7 +71,7 @@ def db_data(Session):
     with Session() as session:
 
         n_clients = 2
-        n_sites = 4
+        n_sites = 3
         n_generations = 100
 
         # Clients
@@ -93,7 +93,7 @@ def db_data(Session):
             site = SiteSQL(
                 site_uuid=uuid.uuid4(),
                 client_uuid=clients[i % n_clients].client_uuid,
-                client_site_id=i,
+                client_site_id=i+1,
                 latitude=51,
                 longitude=3,
                 capacity_kw=4,

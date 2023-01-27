@@ -90,7 +90,7 @@ class DbPvDataSource(PvDataSource):
 
         # TODO The fact that we have to check for two types tells me something does not get checked
         # properly somewhere!
-        if isinstance(pv_ids, (PvId, np.integer)):
+        if isinstance(pv_ids, (PvId, np.integer, str)):
             # Note that this was a scalar.
             was_scalar = True
             pv_ids = [pv_ids]
