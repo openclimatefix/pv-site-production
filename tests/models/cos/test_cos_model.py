@@ -14,7 +14,7 @@ def test_make_fake_intensities():
     assert make_fake_intensity(datetimes[-1]) == 0
 
 
-def test_run_cos_model(pv_yields_and_systems):
+def test_run_cos_model(db_data):
     model = get_model(config={}, pv_data_source=None)
     y = model.predict(X(pv_id=1, ts=datetime(2022, 1, 1, 6)))
     assert len(y.powers) == 48 * 4

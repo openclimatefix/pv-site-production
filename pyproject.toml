@@ -14,7 +14,7 @@ s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"
 sqlalchemy = "^1.4.46"
 psp = {path = "pv-site-prediction", develop = true}
-pvsite-datamodel = {path = "pvsite-datamodel/sdk/python"}
+pvsite-datamodel = "^0.1.16"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -1850,7 +1850,7 @@ test = ["nose", "pytest", "pytest-cov", "pytest-mock", "pytest-remotedata", "pyt
 
 [[package]]
 name = "pvsite-datamodel"
-version = "0.1.15"
+version = "0.1.16"
 description = "SDK for interacting with the PVSite database"
 category = "main"
 optional = false
@@ -1871,10 +1871,6 @@ testcontainers = "3.7.1"
 
 [package.extras]
 tests = ["pytest", "testcontainers.postgres"]
-
-[package.source]
-type = "directory"
-url = "pvsite-datamodel/sdk/python"
 
 [[package]]
 name = "pyasn1"

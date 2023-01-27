@@ -46,6 +46,10 @@ def engine():
 
 @pytest.fixture(scope="session", autouse=True)
 def Session(engine):
+    """ Returns a sessions making object.
+
+    You can use `with Session() as session:`
+    """
     return sessionmaker(bind=engine)
 
 
@@ -71,7 +75,7 @@ def db_data(Session):
     with Session() as session:
 
         n_clients = 2
-        n_sites = 4
+        n_sites = 3
         n_generations = 100
 
         # Clients
@@ -93,7 +97,7 @@ def db_data(Session):
             site = SiteSQL(
                 site_uuid=uuid.uuid4(),
                 client_uuid=clients[i % n_clients].client_uuid,
-                client_site_id=i,
+                client_site_id=i+1,
                 latitude=51,
                 longitude=3,
                 capacity_kw=4,
@@ -107,8 +111,9 @@ def db_data(Session):
         session.commit()
 
         # Generation
+        # start timea will be up to 2022-01-01 11:50, so test should run from then
         start_times = [
-            datetime(2022, 1, 1, 11, 58) + timedelta(minutes=x)
+            datetime(2022, 1, 1, 11, 50) - timedelta(minutes=x)
             for x in range(n_generations)
         ]
 
