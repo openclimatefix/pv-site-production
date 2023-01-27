@@ -129,24 +129,24 @@ class DbPvDataSource(PvDataSource):
                 for g in generations
             )
 
-        # Convert it to an xarray.
-        df = df.set_index(["pv_id", "ts"])
+            # Convert it to an xarray.
+            df = df.set_index(["pv_id", "ts"])
 
-        # Remove duplicate rows.
-        # TODO This should not be necessary: we should be able to remove it once we insure the
-        # database can not have duplicates.
-        df = df[~df.index.duplicated(keep="first")]
+            # Remove duplicate rows.
+            # TODO This should not be necessary: we should be able to remove it once we insure the
+            # database can not have duplicates.
+            df = df[~df.index.duplicated(keep="first")]
 
-        da = xr.Dataset.from_dataframe(df)
+            da = xr.Dataset.from_dataframe(df)
 
-        # Add the metadata associated with the PV systems.
-        # Some come from the database, and some from a separate metadata file.
-        meta_from_db = {
-            # FIXME there might be a missing relationship here and we need to make sure it is
-            # not lazy loaded.
-            str(g.site_uuid): {key: getattr(g.site, key) for key in META_DB_KEYS}
-            for g in generations
-        }
+            # Add the metadata associated with the PV systems.
+            # Some come from the database, and some from a separate metadata file.
+            meta_from_db = {
+                # FIXME there might be a missing relationship here and we need to make sure it is
+                # not lazy loaded.
+                str(g.site_uuid): {key: getattr(g.site, key) for key in META_DB_KEYS}
+                for g in generations
+            }
 
         pv_ids = [str(x) for x in da.coords["pv_id"].values]
 

@@ -1850,7 +1850,7 @@ test = ["nose", "pytest", "pytest-cov", "pytest-mock", "pytest-remotedata", "pyt
 
 [[package]]
 name = "pvsite-datamodel"
-version = "0.1.15"
+version = "0.1.16"
 description = "SDK for interacting with the PVSite database"
 category = "main"
 optional = false
