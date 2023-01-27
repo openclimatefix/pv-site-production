@@ -1872,10 +1872,6 @@ testcontainers = "3.7.1"
 [package.extras]
 tests = ["pytest", "testcontainers.postgres"]
 
-[package.source]
-type = "directory"
-url = "pvsite-datamodel/sdk/python"
-
 [[package]]
 name = "pyasn1"
 version = "0.4.8"
