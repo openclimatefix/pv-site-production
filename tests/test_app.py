@@ -18,6 +18,9 @@ def test_app(config_file: pathlib.Path):
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["--config", str(config_file), "--date", "2022-1-1-06-00"],
+        ["--config", str(config_file), "--date", "2022-1-1-00-02"],
     )
+    print("begin")
+    print(result.output)
+    print("end")
     assert result.exit_code == 0, traceback.print_exception(result.exception)

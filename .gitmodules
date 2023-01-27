@@ -1,3 +1,6 @@
+[submodule "pvsite-datamodel"]
+	path = pvsite-datamodel
+	url = git@github.com:openclimatefix/pvsite-datamodel.git
 [submodule "pv-site-prediction"]
 	path = pv-site-prediction
-	url = https://github.com/openclimatefix/pv-site-prediction.git
+	url = git@github.com:openclimatefix/pv-site-prediction.git

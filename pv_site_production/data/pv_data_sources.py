@@ -3,34 +3,76 @@ PV Data Source
 """
 
 import copy
+import logging
 import pathlib
 from datetime import timedelta
+from uuid import UUID
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from nowcasting_datamodel.models.pv import solar_sheffield_passiv as SHEFFIELD
-from nowcasting_datamodel.read.read_pv import get_pv_systems, get_pv_yield
 from psp.data.data_sources.pv import PvDataSource, min_timestamp
 from psp.ml.typings import PvId, Timestamp
+
+# from nowcasting_datamodel.models.pv import solar_sheffield_passiv as SHEFFIELD
+# from nowcasting_datamodel.read.read_pv import get_pv_systems, get_pv_yield
+from pvsite_datamodel.read.generation import get_pv_generation_by_sites
+from pvsite_datamodel.sqlmodels import SiteSQL
+from sqlalchemy.orm import Session, sessionmaker
 
 # Meta keys that are still taken from our inferred metadata file.
 META_FILE_KEYS = ["tilt", "orientation", "factor"]
 META_DB_KEYS = ["longitude", "latitude"]
 
+_log = logging.getLogger(__name__)
+
+
+# def _list_site_ids_by_client(session: Session, client_uuid: str) -> list[int]:
+#     query = session.query(SiteSQL).filter(SiteSQL.client_uuid == client_uuid)
+#     return [row.site_uuid for row in query]
+
+
+def _get_site_client_id_to_uuid_mapping(
+    session: Session,  # , client_uuid: str
+) -> dict[int, str]:
+    query = session.query(SiteSQL)  # .filter(SiteSQL.client_uuid == client_uuid)
+    # FIXME do we need the cast to str here - should we use the UUID type everywhere?
+    mapping = {row.client_site_id: str(row.site_uuid) for row in query}
+    return mapping
+
 
 class DbPvDataSource(PvDataSource):
     """PV Data Source that reads from our database."""
 
-    def __init__(self, db_connection, metadata_path: pathlib.Path):
+    def __init__(
+        self,
+        session_factory: sessionmaker,
+        metadata_path: pathlib.Path | str,
+    ):
         """Constructor"""
-        self._db_connection = db_connection
-        self._meta = {
-            # TODO Standardize the column names.
-            # Making sure the pv_id (ss_id) is parsed as an integer.
-            int(row["ss_id"]): {key: row[key] for key in META_FILE_KEYS}
-            for _, row in pd.read_csv(metadata_path).iterrows()
-        }
+        self._session_factory = session_factory
+
+        # The info in the metadata file uses the client's ids, we'll need to map those to
+        # site_uuids.
+        with session_factory() as session:
+            id_map = _get_site_client_id_to_uuid_mapping(session)
+
+            print(id_map)
+
+        # Fill in the metadata from the file.
+        self._meta: dict[str, dict[str, float]] = {}
+
+        for _, row in pd.read_csv(metadata_path).iterrows():
+            client_site_id = int(row["ss_id"])
+            site_uuid = id_map.get(client_site_id)
+
+            if site_uuid is None:
+                _log.warning('Unknown client_site_id "%i"', client_site_id)
+                continue
+
+            self._meta[site_uuid] = {key: row[key] for key in META_FILE_KEYS}
+
+        print(self._meta)
 
         # We'll ignore anything after that date. This is set in the `without_future` method.
         self._max_ts: Timestamp | None = None
@@ -55,29 +97,35 @@ class DbPvDataSource(PvDataSource):
         else:
             was_scalar = False
 
-        with self._db_connection.get_session() as session:
-            pv_yields = get_pv_yield(
+        with self._session_factory() as session:
+            # FIXME change variable names to reflresh the database objects.
+
+            generations = get_pv_generation_by_sites(
                 session=session,
-                pv_systems_ids=pv_ids,
                 start_utc=start_ts,
                 end_utc=end_ts,
-                # TODO What does this option mean?
-                correct_data=None,
-                providers=[SHEFFIELD],
+                site_uuids=[UUID(pv_id) for pv_id in pv_ids],
             )
+
+            if len(generations) > 0:
+                # FIXME it should get here when running the test_common test
+                # Until then something is odd
+                assert False
 
         # Build a pandas dataframe of pv_id, timestamp and power. This makes it easy to convert to
         # an xarray.
         df = pd.DataFrame.from_records(
             {
-                "pv_id": y.pv_system.pv_system_id,
+                "pv_id": str(g.site_uuid),
                 # We remove the timezone information since otherwise the timestamp index gets
                 # converted to an "object" index later. In any case we should have everything in
                 # UTC.
-                "ts": y.datetime_utc.replace(tzinfo=None),
-                "power": y.solar_generation_kw,
+                # FIXME this will probably not be an eager join? We need to make sure we don't hit
+                # the database again.
+                "ts": g.datetime_interval.start_utc.replace(tzinfo=None),
+                "power": g.power_kw,
             }
-            for y in pv_yields
+            for g in generations
         )
         # Convert it to an xarray.
         df = df.set_index(["pv_id", "ts"])
@@ -92,15 +140,16 @@ class DbPvDataSource(PvDataSource):
         # Add the metadata associated with the PV systems.
         # Some come from the database, and some from a separate metadata file.
         meta_from_db = {
-            y.pv_system.pv_system_id: {
-                key: getattr(y.pv_system, key) for key in META_DB_KEYS
-            }
-            for y in pv_yields
+            # FIXME there might be a missing relationship here and we need to make sure it is
+            # not lazy loaded.
+            str(g.site_uuid): {key: getattr(g.site, key) for key in META_DB_KEYS}
+            for g in generations
         }
 
-        pv_ids = [int(x) for x in da.coords["pv_id"].values]
+        pv_ids = [str(x) for x in da.coords["pv_id"].values]
 
         # Merge both the meta data from the DB and from the file.
+        # FIXME no UUID cast should be required here
         meta = {pv_id: self._meta[pv_id] | meta_from_db[pv_id] for pv_id in pv_ids}
 
         # Add the metadata as coordinates to the pv_ids in the xr.Dataset.
@@ -120,11 +169,19 @@ class DbPvDataSource(PvDataSource):
 
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""
-        with self._db_connection.get_session() as session:
-            pv_systems = get_pv_systems(session=session, provider=SHEFFIELD)
-        pv_ids = [p.pv_system_id for p in pv_systems]
+        with self._session_factory() as session:
+            query = session.query(SiteSQL.site_uuid)
+            pv_ids = [str(row.site_uuid) for row in query]
+        print("site_uuids from DB")
+        print(pv_ids)
+        print("site_uuids from meta")
+        print(list(self._meta.keys()))
+        #     mapping = {row.client_site_id: row.site_uuid for row in query}
+        # pv_ids = _list_site_ids_by_client(session, self._client_uuid)
         # Only keep the pv_ids for which we have metadata.
         pv_ids = [pv_id for pv_id in pv_ids if pv_id in self._meta]
+        print("pv_ids left")
+        print(pv_ids)
         return pv_ids
 
     def min_ts(self) -> Timestamp:
