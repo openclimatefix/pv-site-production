@@ -46,7 +46,7 @@ def engine():
 
 @pytest.fixture(scope="session", autouse=True)
 def Session(engine):
-    """ returns a sessions making object.
+    """ Returns a sessions making object.
 
     You can use `with Session() as session:`
     """
