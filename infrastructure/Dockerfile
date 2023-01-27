@@ -3,7 +3,7 @@ FROM python:3.10-slim
 # install extra requirements
 RUN apt-get clean
 RUN apt-get update -y
-RUN apt-get install gcc g++ libgeos-dev -y git
+RUN apt-get install gcc g++ libgeos-dev -y git -y pkg-config -y libhdf5-dev
 
 # copy files requirements
 COPY ./pyproject.toml /app/pyproject.toml
