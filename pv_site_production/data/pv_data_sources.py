@@ -100,6 +100,8 @@ class DbPvDataSource(PvDataSource):
         with self._session_factory() as session:
             # FIXME change variable names to reflresh the database objects.
 
+            print(f'Getting data from {start_ts} to {end_ts} for {pv_ids}')
+
             generations = get_pv_generation_by_sites(
                 session=session,
                 start_utc=start_ts,
