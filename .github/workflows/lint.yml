@@ -19,6 +19,6 @@ jobs:
           pip install mypy
           # This is not super clean but we need to have those "type stubs" dependencies both in
           # pyproject.toml and in here.
-          pip install types-pyyaml pandas-stubs
+          pip install types-pyyaml pandas-stubs sqlalchemy-stubs
       - name: Run mypy
         run: mypy pv_site_production tests

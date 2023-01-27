@@ -9,19 +9,15 @@ from datetime import datetime
 
 import click
 import dotenv
-from nowcasting_datamodel.connection import DatabaseConnection
-from nowcasting_datamodel.models.base import Base_PV
 from psp.ml.models.base import PvSiteModel
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from pv_site_production.data.pv_data_sources import DbPvDataSource
 from pv_site_production.models.common import apply_model
 from pv_site_production.utils.config import load_config
 from pv_site_production.utils.imports import import_from_module
 
-logging.basicConfig(
-    level=getattr(logging, os.getenv("LOGLEVEL", "DEBUG")),
-    format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
-)
 _log = logging.getLogger(__name__)
 
 
@@ -72,16 +68,19 @@ def main(
 
     _log.debug("Connecting to pv database")
     url = config["pv_db_url"]
-    pv_db_connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
+
+    engine = create_engine(url)
+    Session = sessionmaker(engine)
 
     # Wrap into a PV data source for the models.
     _log.debug("Creating PV data source")
-    pv_data_source = DbPvDataSource(pv_db_connection, config["pv_metadata_path"])
+    pv_data_source = DbPvDataSource(Session, config["pv_metadata_path"])
 
     _log.debug("Loading model")
     model: PvSiteModel = get_model(config, pv_data_source)
 
     pv_ids = pv_data_source.list_pv_ids()
+    _log.debug(f"Treating {len(pv_ids)} sites")
 
     if max_pvs is not None:
         pv_ids = pv_ids[:max_pvs]
@@ -96,4 +95,8 @@ def main(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=getattr(logging, os.getenv("LOGLEVEL", "WARNING").upper()),
+        format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+    )
     main()

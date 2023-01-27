@@ -3,148 +3,167 @@ Fixtures for testing
 """
 
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-import sqlalchemy
-from nowcasting_datamodel.connection import DatabaseConnection
-from nowcasting_datamodel.models import (
-    Base_PV,
-    PVSystem,
-    PVSystemSQL,
-    PVYield,
-    PVYieldSQL,
-    pv_output,
-    solar_sheffield_passiv,
+from pvsite_datamodel.sqlmodels import (
+    Base,
+    ClientSQL,
+    ForecastSQL,
+    GenerationSQL,
+    LatestForecastValueSQL,
+    SiteSQL,
+    StatusSQL,
 )
+from pvsite_datamodel.write.datetime_intervals import (
+    get_or_else_create_datetime_interval,
+)
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
 
 
 @pytest.fixture(scope="session", autouse=True)
-def db_connection():
-    """Create data connection"""
-
+def engine():
+    """Database engine, this includes the table creation."""
     with PostgresContainer("postgres:14.5") as postgres:
         url = postgres.get_connection_url()
         os.environ["OCF_PV_DB_URL"] = url
 
-        connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
+        url = postgres.get_connection_url()
+        engine = create_engine(url)
+        Base.metadata.create_all(engine)
 
-        for table in [PVSystemSQL, PVYieldSQL]:
-            table.__table__.create(connection.engine)
+        yield engine
 
-        yield connection
-
-        # Psql won't let us drop the tables if any sessions are still opened.
-        sqlalchemy.orm.close_all_sessions()
-
-        for table in [PVYieldSQL, PVSystemSQL]:
-            table.__table__.drop(connection.engine)
-
-
-@pytest.fixture()
-def db_session(db_connection):
-    """Creates a new database session for a test."""
-
-    connection = db_connection.engine.connect()
-    t = connection.begin()
-
-    with db_connection.get_session() as s:
-        s.begin()
-        yield s
-        s.rollback()
-
-    t.rollback()
-    connection.close()
+        engine.dispose()
 
 
 @pytest.fixture(scope="session", autouse=True)
-def pv_yields_and_systems(db_connection):
-    """Create pv yields and systems
+def Session(engine):
+    """Returns a sessions making object.
 
-    Pv systems: Two systems
-    PV yields:
-        For system 1, pv yields from 4 to 10 at 5 minutes. Last one at 09.55
-        For system 2: 1 pv yield at 04.00
+    You can use `with Session() as session:`
+    """
+    return sessionmaker(bind=engine)
+
+
+@pytest.fixture()
+def db_session(Session):
+    """Creates a new database session for a test.
+
+    We automatically roll back whatever happens when the test completes.
     """
 
-    db_session = db_connection.get_session()
+    with Session() as session:
+        with session.begin():
+            yield session
+            session.rollback()
 
-    pv_system_sql_1: PVSystemSQL = PVSystem(
-        pv_system_id=1,
-        provider=pv_output,
-        status_interval_minutes=5,
-        longitude=0,
-        latitude=55,
-        ml_capacity_kw=123,
-    ).to_orm()
-    pv_system_sql_1_ss: PVSystemSQL = PVSystem(
-        pv_system_id=1,
-        provider=solar_sheffield_passiv,
-        status_interval_minutes=5,
-        longitude=0,
-        latitude=57,
-        ml_capacity_kw=124,
-    ).to_orm()
-    pv_system_sql_2: PVSystemSQL = PVSystem(
-        pv_system_id=2,
-        provider=pv_output,
-        status_interval_minutes=5,
-        longitude=0,
-        latitude=56,
-        ml_capacity_kw=124,
-    ).to_orm()
-    pv_system_sql_3: PVSystemSQL = PVSystem(
-        pv_system_id=3,
-        provider=pv_output,
-        status_interval_minutes=5,
-        longitude=0,
-        latitude=57,
-        ml_capacity_kw=124,
-    ).to_orm()
 
-    pv_yield_sqls = []
-    for hour in range(4, 10):
-        for minute in range(0, 60, 5):
-            pv_yield_1 = PVYield(
-                datetime_utc=datetime(2022, 1, 1, hour, minute, tzinfo=timezone.utc),
-                solar_generation_kw=hour + minute / 100,
-            ).to_orm()
-            pv_yield_1.pv_system = pv_system_sql_1
-            pv_yield_sqls.append(pv_yield_1)
+@pytest.fixture(scope="session", autouse=True)
+def db_data(Session):
+    """Fill in the database with some initial data."""
 
-            pv_yield_1_ss = PVYield(
-                datetime_utc=datetime(2022, 1, 1, hour, minute),
-                solar_generation_kw=hour + minute / 100,
-            ).to_orm()
-            pv_yield_1_ss.pv_system = pv_system_sql_1_ss
-            pv_yield_sqls.append(pv_yield_1_ss)
+    # Those fixtures are inspired from:
+    # https://github.com/openclimatefix/pvsite-datamodel/blob/ab7478b0a8c6f0bc06d998817622f7a80e6f6ca3/sdk/python/tests/conftest.py
+    with Session() as session:
 
-    # pv system with gaps every 5 mins
-    for minutes in [0, 10, 20, 30]:
+        n_clients = 2
+        n_sites = 3
+        n_generations = 100
 
-        pv_yield_4 = PVYield(
-            datetime_utc=datetime(2022, 1, 1, 4, tzinfo=timezone.utc)
-            + timedelta(minutes=minutes),
-            solar_generation_kw=4,
-        ).to_orm()
-        pv_yield_4.pv_system = pv_system_sql_2
-        pv_yield_sqls.append(pv_yield_4)
+        # Clients
+        clients = []
+        for i in range(n_clients):
+            client = ClientSQL(
+                client_uuid=uuid.uuid4(),
+                client_name=f"testclient_{i}",
+                created_utc=datetime.now(timezone.utc),
+            )
+            session.add(client)
+            clients.append(client)
 
-    # add a system with only on pv yield
-    pv_yield_5 = PVYield(
-        datetime_utc=datetime(2022, 1, 1, 4, tzinfo=timezone.utc)
-        + timedelta(minutes=minutes),
-        solar_generation_kw=4,
-    ).to_orm()
-    pv_yield_5.pv_system = pv_system_sql_3
-    pv_yield_sqls.append(pv_yield_5)
+        session.commit()
 
-    # add to database
-    db_session.add_all(pv_yield_sqls)
-    db_session.add(pv_system_sql_1)
-    db_session.add(pv_system_sql_2)
+        # Sites
+        sites = []
+        for i in range(n_sites):
+            site = SiteSQL(
+                site_uuid=uuid.uuid4(),
+                client_uuid=clients[i % n_clients].client_uuid,
+                client_site_id=i + 1,
+                latitude=51,
+                longitude=3,
+                capacity_kw=4,
+                created_utc=datetime.now(timezone.utc),
+                updated_utc=datetime.now(timezone.utc),
+                ml_id=i,
+            )
+            session.add(site)
+            sites.append(site)
 
-    db_session.commit()
+        session.commit()
 
-    db_session.close()
+        # Generation
+        # Start time will be up to 2022-01-01 11:50, so test should run from then.
+        start_times = [
+            datetime(2022, 1, 1, 11, 50) - timedelta(minutes=x)
+            for x in range(n_generations)
+        ]
+
+        for site in sites:
+            for i in range(n_generations):
+                datetime_interval, _ = get_or_else_create_datetime_interval(
+                    session=session, start_time=start_times[i]
+                )
+
+                generation = GenerationSQL(
+                    generation_uuid=uuid.uuid4(),
+                    site_uuid=site.site_uuid,
+                    power_kw=i,
+                    datetime_interval_uuid=datetime_interval.datetime_interval_uuid,
+                )
+                session.add(generation)
+
+        session.commit()
+
+        # Forecast
+        forecast_version: str = "0.0.0"
+
+        for site in sites:
+            forecast = ForecastSQL(
+                forecast_uuid=uuid.uuid4(),
+                site_uuid=site.site_uuid,
+                forecast_version=forecast_version,
+            )
+            session.add(forecast)
+
+            for i in range(n_generations):
+                datetime_interval, _ = get_or_else_create_datetime_interval(
+                    session=session, start_time=start_times[i]
+                )
+
+                latest_forecast_value: LatestForecastValueSQL = LatestForecastValueSQL(
+                    latest_forecast_value_uuid=uuid.uuid4(),
+                    datetime_interval_uuid=datetime_interval.datetime_interval_uuid,
+                    forecast_generation_kw=i,
+                    forecast_uuid=forecast.forecast_uuid,
+                    site_uuid=site.site_uuid,
+                    forecast_version=forecast_version,
+                )
+
+                session.add(latest_forecast_value)
+
+        session.commit()
+
+        for i in range(4):
+            status = StatusSQL(
+                status_uuid=uuid.uuid4(),
+                status="OK",
+                message=f"Status {i}",
+            )
+            session.add(status)
+
+        session.commit()
