@@ -55,16 +55,14 @@ class DbPvDataSource(PvDataSource):
         # The info in the metadata file uses the client's ids, we'll need to map those to
         # site_uuids.
         with session_factory() as session:
-            self.id_map = _get_site_client_id_to_uuid_mapping(session)
-
-            print(self.id_map)
+            id_map = _get_site_client_id_to_uuid_mapping(session)
 
         # Fill in the metadata from the file.
         self._meta: dict[str, dict[str, float]] = {}
 
         for _, row in pd.read_csv(metadata_path).iterrows():
             client_site_id = int(row["ss_id"])
-            site_uuid = self.id_map.get(client_site_id)
+            site_uuid = id_map.get(client_site_id)
 
             if site_uuid is None:
                 _log.warning('Unknown client_site_id "%i"', client_site_id)
