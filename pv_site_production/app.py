@@ -73,7 +73,7 @@ def main(
     _log.debug("Connecting to pv database")
     url = config["pv_db_url"]
 
-    engine = create_engine(url)
+    engine = create_engine(url, echo=True)
     Session = sessionmaker(engine)
     # pv_db_connection = DatabaseConnection(url=url, base=Base_PV, echo=False)
 
@@ -85,7 +85,7 @@ def main(
     model: PvSiteModel = get_model(config, pv_data_source)
 
     pv_ids = pv_data_source.list_pv_ids()
-    _log.debug("Treating {len(pv_ids)} sites")
+    _log.debug(f"Treating {len(pv_ids)} sites")
 
     if max_pvs is not None:
         pv_ids = pv_ids[:max_pvs]
