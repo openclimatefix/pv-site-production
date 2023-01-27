@@ -103,9 +103,6 @@ class DbPvDataSource(PvDataSource):
             print(f'Getting data from {start_ts} to {end_ts} for {pv_ids}')
 
             site_uuids = [UUID(pv_id) for pv_id in pv_ids]
-            generations = session.query(GenerationSQL).all()
-            print(generations)
-            print(generations[0].site_uuid)
 
             generations = get_pv_generation_by_sites(
                 session=session,
@@ -114,25 +111,24 @@ class DbPvDataSource(PvDataSource):
                 site_uuids=site_uuids,
             )
 
-            print(generations)
-
             assert len(generations) > 0
 
-        # Build a pandas dataframe of pv_id, timestamp and power. This makes it easy to convert to
-        # an xarray.
-        df = pd.DataFrame.from_records(
-            {
-                "pv_id": str(g.site_uuid),
-                # We remove the timezone information since otherwise the timestamp index gets
-                # converted to an "object" index later. In any case we should have everything in
-                # UTC.
-                # FIXME this will probably not be an eager join? We need to make sure we don't hit
-                # the database again.
-                "ts": g.datetime_interval.start_utc.replace(tzinfo=None),
-                "power": g.power_kw,
-            }
-            for g in generations
-        )
+            # Build a pandas dataframe of pv_id, timestamp and power. This makes it easy to convert to
+            # an xarray.
+            df = pd.DataFrame.from_records(
+                {
+                    "pv_id": str(g.site_uuid),
+                    # We remove the timezone information since otherwise the timestamp index gets
+                    # converted to an "object" index later. In any case we should have everything in
+                    # UTC.
+                    # FIXME this will probably not be an eager join? We need to make sure we don't hit
+                    # the database again.
+                    "ts": g.datetime_interval.start_utc.replace(tzinfo=None),
+                    "power": g.power_kw,
+                }
+                for g in generations
+            )
+
         # Convert it to an xarray.
         print('Select "pv_id", "ts"')
         print(df)
