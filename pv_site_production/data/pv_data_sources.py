@@ -17,7 +17,7 @@ from psp.ml.typings import PvId, Timestamp
 # from nowcasting_datamodel.models.pv import solar_sheffield_passiv as SHEFFIELD
 # from nowcasting_datamodel.read.read_pv import get_pv_systems, get_pv_yield
 from pvsite_datamodel.read.generation import get_pv_generation_by_sites
-from pvsite_datamodel.sqlmodels import SiteSQL
+from pvsite_datamodel.sqlmodels import SiteSQL, GenerationSQL
 from sqlalchemy.orm import Session, sessionmaker
 
 # Meta keys that are still taken from our inferred metadata file.
@@ -103,6 +103,9 @@ class DbPvDataSource(PvDataSource):
             print(f'Getting data from {start_ts} to {end_ts} for {pv_ids}')
 
             site_uuids = [UUID(pv_id) for pv_id in pv_ids]
+            generations = session.query(GenerationSQL).all()
+            print(generations)
+            print(generations[0].site_uuid)
 
             generations = get_pv_generation_by_sites(
                 session=session,
@@ -110,6 +113,8 @@ class DbPvDataSource(PvDataSource):
                 # end_utc=end_ts,
                 site_uuids=site_uuids,
             )
+
+            print(generations)
 
             if len(generations) > 0:
                 # FIXME it should get here when running the test_common test
