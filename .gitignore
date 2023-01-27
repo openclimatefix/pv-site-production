@@ -130,3 +130,6 @@ dmypy.json
 
 # Environment
 .env
+
+# IDE
+.idea
