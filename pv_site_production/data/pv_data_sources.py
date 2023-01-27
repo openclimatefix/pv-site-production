@@ -102,12 +102,12 @@ class DbPvDataSource(PvDataSource):
 
             print(f'Getting data from {start_ts} to {end_ts} for {pv_ids}')
 
-            site_uuids = [UUID(self.id_map[pv_id]) for pv_id in pv_ids]
+            site_uuids = [UUID(pv_id) for pv_id in pv_ids]
 
             generations = get_pv_generation_by_sites(
                 session=session,
-                start_utc=start_ts,
-                end_utc=end_ts,
+                # start_utc=start_ts,
+                # end_utc=end_ts,
                 site_uuids=site_uuids,
             )
 
