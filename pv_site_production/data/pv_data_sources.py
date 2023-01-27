@@ -106,12 +106,13 @@ class DbPvDataSource(PvDataSource):
 
             generations = get_pv_generation_by_sites(
                 session=session,
-                # start_utc=start_ts,
-                # end_utc=end_ts,
+                start_utc=start_ts,
+                end_utc=end_ts,
                 site_uuids=site_uuids,
             )
 
-            assert len(generations) > 0
+            assert len(generations) > 0, f'There were no generations for {site_uuids} ' \
+                                         f'from  {start_ts} to {end_ts}'
 
             # Build a pandas dataframe of pv_id, timestamp and power. This makes it easy to convert to
             # an xarray.

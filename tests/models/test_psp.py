@@ -31,6 +31,6 @@ def test_get_model():
     with Session() as session:
         site = session.query(SiteSQL).first()
 
-    y = model.predict(X(pv_id=str(site.site_uuid), ts=datetime(2022, 1, 1, 6)))
+    y = model.predict(X(pv_id=str(site.site_uuid), ts=datetime(2022, 1, 1, 11, 50)))
     # The fixture model was trained with 13 horizons.
     assert y.powers.shape == (13,)
