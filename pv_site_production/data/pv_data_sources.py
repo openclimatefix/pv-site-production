@@ -55,16 +55,16 @@ class DbPvDataSource(PvDataSource):
         # The info in the metadata file uses the client's ids, we'll need to map those to
         # site_uuids.
         with session_factory() as session:
-            id_map = _get_site_client_id_to_uuid_mapping(session)
+            self.id_map = _get_site_client_id_to_uuid_mapping(session)
 
-            print(id_map)
+            print(self.id_map)
 
         # Fill in the metadata from the file.
         self._meta: dict[str, dict[str, float]] = {}
 
         for _, row in pd.read_csv(metadata_path).iterrows():
             client_site_id = int(row["ss_id"])
-            site_uuid = id_map.get(client_site_id)
+            site_uuid = self.id_map.get(client_site_id)
 
             if site_uuid is None:
                 _log.warning('Unknown client_site_id "%i"', client_site_id)
@@ -102,11 +102,13 @@ class DbPvDataSource(PvDataSource):
 
             print(f'Getting data from {start_ts} to {end_ts} for {pv_ids}')
 
+            site_uuids = [UUID(self.id_map[pv_id]) for pv_id in pv_ids]
+
             generations = get_pv_generation_by_sites(
                 session=session,
                 start_utc=start_ts,
                 end_utc=end_ts,
-                site_uuids=[UUID(pv_id) for pv_id in pv_ids],
+                site_uuids=site_uuids,
             )
 
             if len(generations) > 0:
