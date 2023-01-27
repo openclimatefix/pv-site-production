@@ -13,11 +13,10 @@ import pandas as pd
 import xarray as xr
 from psp.data.data_sources.pv import PvDataSource, min_timestamp
 from psp.ml.typings import PvId, Timestamp
-
 # from nowcasting_datamodel.models.pv import solar_sheffield_passiv as SHEFFIELD
 # from nowcasting_datamodel.read.read_pv import get_pv_systems, get_pv_yield
 from pvsite_datamodel.read.generation import get_pv_generation_by_sites
-from pvsite_datamodel.sqlmodels import SiteSQL, GenerationSQL
+from pvsite_datamodel.sqlmodels import SiteSQL
 from sqlalchemy.orm import Session, sessionmaker
 
 # Meta keys that are still taken from our inferred metadata file.
@@ -98,7 +97,7 @@ class DbPvDataSource(PvDataSource):
         with self._session_factory() as session:
             # FIXME change variable names to reflresh the database objects.
 
-            print(f'Getting data from {start_ts} to {end_ts} for {pv_ids}')
+            print(f"Getting data from {start_ts} to {end_ts} for {pv_ids}")
 
             site_uuids = [UUID(pv_id) for pv_id in pv_ids]
 
@@ -109,10 +108,12 @@ class DbPvDataSource(PvDataSource):
                 site_uuids=site_uuids,
             )
 
-            assert len(generations) > 0, f'There were no generations for {site_uuids} ' \
-                                         f'from  {start_ts} to {end_ts}'
+            assert len(generations) > 0, (
+                f"There were no generations for {site_uuids} " f"from  {start_ts} to {end_ts}"
+            )
 
-            # Build a pandas dataframe of pv_id, timestamp and power. This makes it easy to convert to
+            # Build a pandas dataframe of pv_id, timestamp and power.
+            # This makes it easy to convert to
             # an xarray.
             df = pd.DataFrame.from_records(
                 {
@@ -120,7 +121,8 @@ class DbPvDataSource(PvDataSource):
                     # We remove the timezone information since otherwise the timestamp index gets
                     # converted to an "object" index later. In any case we should have everything in
                     # UTC.
-                    # FIXME this will probably not be an eager join? We need to make sure we don't hit
+                    # FIXME this will probably not be an eager join?
+                    #  We need to make sure we don't hit
                     # the database again.
                     "ts": g.datetime_interval.start_utc.replace(tzinfo=None),
                     "power": g.power_kw,
