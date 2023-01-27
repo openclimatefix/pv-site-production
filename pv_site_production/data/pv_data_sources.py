@@ -130,8 +130,6 @@ class DbPvDataSource(PvDataSource):
             )
 
         # Convert it to an xarray.
-        print('Select "pv_id", "ts"')
-        print(df)
         df = df.set_index(["pv_id", "ts"])
 
         # Remove duplicate rows.
