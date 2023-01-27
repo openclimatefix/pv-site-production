@@ -116,10 +116,7 @@ class DbPvDataSource(PvDataSource):
 
             print(generations)
 
-            if len(generations) > 0:
-                # FIXME it should get here when running the test_common test
-                # Until then something is odd
-                assert False
+            assert len(generations) > 0
 
         # Build a pandas dataframe of pv_id, timestamp and power. This makes it easy to convert to
         # an xarray.
