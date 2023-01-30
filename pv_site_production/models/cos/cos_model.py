@@ -1,5 +1,5 @@
 r"""
-This is a simple fake model, that just uses the time of day.
+Simple fake model, that just uses the time of day.
 
 Daily profile
        _-_

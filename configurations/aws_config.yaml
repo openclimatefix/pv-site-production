@@ -8,4 +8,4 @@ nwp:
 
 pv_metadata_path: s3://pvsite-ml-models-development/meta_inferred.csv
 
-pv_db_url: ${OCF_PV_DB_URL}
+pvsite_db_url: ${OCF_PV_DB_URL}

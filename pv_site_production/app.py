@@ -10,8 +10,8 @@ from datetime import datetime
 import click
 import dotenv
 from psp.ml.models.base import PvSiteModel
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from pvsite_datamodel.connection import DatabaseConnection as SiteDatabaseConnection
+from pvsite_datamodel.write import insert_forecast_values
 
 from pv_site_production.data.pv_data_sources import DbPvDataSource
 from pv_site_production.models.common import apply_model
@@ -48,7 +48,7 @@ def main(
     timestamp: datetime | None,
     max_pvs: int | None,
 ):
-    """Main function"""
+    """Run the main function."""
 
     _log.debug("Load the configuration file")
     # Typically the configuration will contain many placeholders pointing to environment variables.
@@ -65,14 +65,12 @@ def main(
     get_model = import_from_module(config["run_model_func"])
 
     _log.debug("Connecting to pv database")
-    url = config["pv_db_url"]
-
-    engine = create_engine(url)
-    Session = sessionmaker(engine)
+    url = config["pvsite_db_url"]
+    pvsite_connection = SiteDatabaseConnection(url=url, echo=False)
 
     # Wrap into a PV data source for the models.
     _log.debug("Creating PV data source")
-    pv_data_source = DbPvDataSource(Session, config["pv_metadata_path"])
+    pv_data_source = DbPvDataSource(pvsite_connection, config["pv_metadata_path"])
 
     _log.debug("Loading model")
     model: PvSiteModel = get_model(config, pv_data_source)
@@ -86,10 +84,10 @@ def main(
     _log.info("Applying model")
     results_df = apply_model(model, pv_ids=pv_ids, ts=timestamp)
 
-    # _log.info('Saving results to database')
-    # TODO Save the results to the database. In the meantime we print them.
-    for _, row in results_df.iterrows():
-        print(f"{row['pv_uuid']} | {row['target_datetime_utc']} | {row['forecast_kw']}")
+    _log.info('Saving results to database')
+
+    pvsite_session = pvsite_connection.get_session()
+    insert_forecast_values(pvsite_session, results_df)
 
 
 if __name__ == "__main__":

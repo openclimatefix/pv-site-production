@@ -1,4 +1,4 @@
-""" Schema for what the ml modesl produce"""
+""" Schema for what the ml models produce."""
 from datetime import datetime
 
 import pandera as pa

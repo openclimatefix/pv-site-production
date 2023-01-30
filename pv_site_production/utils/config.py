@@ -12,13 +12,14 @@ import yaml
 # Inspired from:
 # https://dustinoprea.com/2022/04/01/python-substitute-values-into-yaml-during-parse/
 def load_config_from_string(config: str, context: dict[str, str] | None = None) -> Any:
-    """Same as `load_config` but directly from the YAML string."""
+    """Like `load_config` but directly from the YAML string."""
     if context is None:
         context = {}
 
     def string_constructor(loader, node):
         t = string.Template(node.value)
-        assert context is not None
+        if context is None:
+            raise Exception()
         value = t.substitute(context)
         return value
 
@@ -32,7 +33,8 @@ def load_config_from_string(config: str, context: dict[str, str] | None = None) 
 
 
 def load_config(config: pathlib.Path, context: dict[str, str] | None = None) -> Any:
-    """Parse a YAML string config into an object.
+    """
+    Parse a YAML string config into an object.
 
     Arguments:
     ---------

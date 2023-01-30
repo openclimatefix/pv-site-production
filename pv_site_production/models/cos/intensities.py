@@ -1,4 +1,4 @@
-""" Function to make a solar intensity from one datetime """
+""" Function to make a solar intensity from one datetime. """
 from datetime import datetime
 
 import numpy as np
@@ -8,7 +8,7 @@ TOTAL_MINUTES_IN_ONE_DAY = 24 * 60
 
 def make_fake_intensity(datetime_utc: datetime) -> float:
     """
-    Make a fake intesnity value based on the time of the day
+    Make a fake intesnity value based on the time of the day.
 
     :param datetime_utc:
     :return: intensity, between 0 and 1
