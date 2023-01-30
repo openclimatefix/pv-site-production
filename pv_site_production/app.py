@@ -56,9 +56,7 @@ def main(
     # Environment variables still have precedence.
 
     # We remove the `None` values because that's how we typed `load_config`.
-    dotenv_variables = {
-        k: v for k, v in dotenv.dotenv_values().items() if v is not None
-    }
+    dotenv_variables = {k: v for k, v in dotenv.dotenv_values().items() if v is not None}
     config = load_config(config_path, dotenv_variables | os.environ)
 
     if timestamp is None:

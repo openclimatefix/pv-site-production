@@ -30,8 +30,7 @@ def apply_model(model: PvSiteModel, pv_ids: list[PvId], ts: Timestamp) -> pd.Dat
                     "forecast_kw": power / 1000 * 12,
                     "pv_uuid": pv_id,
                     # TODO Does it make sense to use the middle of the horizon interval?
-                    "target_datetime_utc": ts
-                    + timedelta(minutes=(horizon[1] + horizon[0]) / 2),
+                    "target_datetime_utc": ts + timedelta(minutes=(horizon[1] + horizon[0]) / 2),
                 }
             )
 

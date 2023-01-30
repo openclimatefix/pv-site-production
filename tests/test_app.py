@@ -7,9 +7,7 @@ from click.testing import CliRunner
 from pv_site_production.app import main
 
 CONFIG_FIXTURES = [
-    x
-    for x in pathlib.Path("tests/fixtures/model_configs").iterdir()
-    if x.suffix == ".yaml"
+    x for x in pathlib.Path("tests/fixtures/model_configs").iterdir() if x.suffix == ".yaml"
 ]
 
 

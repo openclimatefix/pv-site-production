@@ -31,16 +31,12 @@ class CosModel(PvSiteModel):
     def predict_from_features(self, features: Features) -> Y:
         """Get the output from features."""
         ts = features["ts"]
-        tss = [
-            ts + timedelta(minutes=f[1] - f[0]) for f in self.config.future_intervals
-        ]
+        tss = [ts + timedelta(minutes=f[1] - f[0]) for f in self.config.future_intervals]
         powers = np.array([make_fake_intensity(ts) for ts in tss])
         return Y(powers=powers)
 
 
-def get_model(
-    config: dict[str, Any], pv_data_source: PvDataSource | None
-) -> PvSiteModel:
+def get_model(config: dict[str, Any], pv_data_source: PvDataSource | None) -> PvSiteModel:
     """Get a ready cosine model."""
     model_config = PvSiteModelConfig(
         # 15 minute itervervals for 48 hours.

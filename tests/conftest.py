@@ -16,9 +16,7 @@ from pvsite_datamodel.sqlmodels import (
     SiteSQL,
     StatusSQL,
 )
-from pvsite_datamodel.write.datetime_intervals import (
-    get_or_else_create_datetime_interval,
-)
+from pvsite_datamodel.write.datetime_intervals import get_or_else_create_datetime_interval
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
@@ -109,8 +107,7 @@ def db_data(Session):
         # Generation
         # Start time will be up to 2022-01-01 11:50, so test should run from then.
         start_times = [
-            datetime(2022, 1, 1, 11, 50) - timedelta(minutes=x)
-            for x in range(n_generations)
+            datetime(2022, 1, 1, 11, 50) - timedelta(minutes=x) for x in range(n_generations)
         ]
 
         for site in sites:
