@@ -10,6 +10,7 @@ from datetime import datetime
 import click
 import dotenv
 from psp.ml.models.base import PvSiteModel
+from pvsite_datamodel.write import insert_forecast_values
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -43,10 +44,18 @@ _log = logging.getLogger(__name__)
     default=None,
     help="Maximum number of PVs to treat. This is useful for testing.",
 )
+@click.option(
+    "--write-to-db",
+    is_flag=True,
+    default=False,
+    help="Set this flag to actually write the results to the database."
+    "By default we only print to stdout",
+)
 def main(
     config_path: pathlib.Path,
     timestamp: datetime | None,
     max_pvs: int | None,
+    write_to_db: bool,
 ):
     """Main function"""
 
@@ -86,10 +95,21 @@ def main(
     _log.info("Applying model")
     results_df = apply_model(model, pv_ids=pv_ids, ts=timestamp)
 
-    # _log.info('Saving results to database')
-    # TODO Save the results to the database. In the meantime we print them.
-    for _, row in results_df.iterrows():
-        print(f"{row['pv_uuid']} | {row['target_datetime_utc']} | {row['forecast_kw']}")
+    if write_to_db:
+        _log.info("Writing forecasts to DB")
+
+        # TODO Make `insert_forecast_values` support (expect?) datetimes.
+        # Currently `insert_forecast_values` expects datetimes as string with ISO formatting.
+        results_df["target_datetime_utc"] = results_df["target_datetime_utc"].dt.strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+
+        with Session() as session:
+            insert_forecast_values(session, results_df)
+    else:
+        # When we don't write to the DB, we print to stdout instead.
+        for _, row in results_df.iterrows():
+            print(f"{row['pv_uuid']} | {row['target_datetime_utc']} | {row['forecast_kw']}")
 
 
 if __name__ == "__main__":
