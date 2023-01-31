@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import (
     Base,
     ClientSQL,
@@ -17,56 +18,47 @@ from pvsite_datamodel.sqlmodels import (
     StatusSQL,
 )
 from pvsite_datamodel.write.datetime_intervals import get_or_else_create_datetime_interval
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
 
 
 @pytest.fixture(scope="session", autouse=True)
-def engine():
+def database_connection():
     """Database engine, this includes the table creation."""
     with PostgresContainer("postgres:14.5") as postgres:
         url = postgres.get_connection_url()
         os.environ["OCF_PV_DB_URL"] = url
 
-        url = postgres.get_connection_url()
-        engine = create_engine(url)
+        database_connection = DatabaseConnection(url)
+
+        engine = database_connection.engine
+
         Base.metadata.create_all(engine)
 
-        yield engine
+        yield database_connection
 
         engine.dispose()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def Session(engine):
-    """Returns a sessions making object.
-
-    You can use `with Session() as session:`
-    """
-    return sessionmaker(bind=engine)
-
-
 @pytest.fixture()
-def db_session(Session):
+def db_session(database_connection):
     """Creates a new database session for a test.
 
     We automatically roll back whatever happens when the test completes.
     """
 
-    with Session() as session:
+    with database_connection.get_session() as session:
         with session.begin():
             yield session
             session.rollback()
 
 
 @pytest.fixture(scope="session", autouse=True)
-def db_data(Session):
+def db_data(database_connection):
     """Fill in the database with some initial data."""
 
     # Those fixtures are inspired from:
     # https://github.com/openclimatefix/pvsite-datamodel/blob/ab7478b0a8c6f0bc06d998817622f7a80e6f6ca3/sdk/python/tests/conftest.py
-    with Session() as session:
+    with database_connection.get_session() as session:
 
         n_clients = 2
         n_sites = 3

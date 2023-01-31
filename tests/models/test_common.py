@@ -6,16 +6,14 @@ from pv_site_production.data.pv_data_sources import DbPvDataSource
 from pv_site_production.models.common import apply_model
 from pv_site_production.models.psp import get_model
 
-# from pv_site_production.models.cos.cos_model import get_model
 
-
-def test_common(db_session, Session):
+def test_common(database_connection, db_session):
 
     pv_ids = [str(row.site_uuid) for row in db_session.query(SiteSQL)]
 
     assert len(pv_ids) > 0
 
-    pv_data_source = DbPvDataSource(Session, "tests/fixtures/pv_metadata.csv")
+    pv_data_source = DbPvDataSource(database_connection, "tests/fixtures/pv_metadata.csv")
 
     model = get_model(
         {
@@ -29,8 +27,5 @@ def test_common(db_session, Session):
     )
 
     df = apply_model(model, pv_ids, datetime(2022, 1, 1, 12))
-
-    print(df)
-    print(len(df))
 
     assert len(df) > 0

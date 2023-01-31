@@ -10,9 +10,8 @@ from datetime import datetime
 import click
 import dotenv
 from psp.ml.models.base import PvSiteModel
+from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.write import insert_forecast_values
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from pv_site_production.data.pv_data_sources import DbPvDataSource
 from pv_site_production.models.common import apply_model
@@ -76,12 +75,11 @@ def main(
     _log.debug("Connecting to pv database")
     url = config["pv_db_url"]
 
-    engine = create_engine(url)
-    Session = sessionmaker(engine)
+    database_connection = DatabaseConnection(url)
 
     # Wrap into a PV data source for the models.
     _log.debug("Creating PV data source")
-    pv_data_source = DbPvDataSource(Session, config["pv_metadata_path"])
+    pv_data_source = DbPvDataSource(database_connection, config["pv_metadata_path"])
 
     _log.debug("Loading model")
     model: PvSiteModel = get_model(config, pv_data_source)
@@ -104,7 +102,7 @@ def main(
             "%Y-%m-%dT%H:%M:%SZ"
         )
 
-        with Session() as session:
+        with database_connection.get_session() as session:  # type: ignore
             insert_forecast_values(session, results_df)
     else:
         # When we don't write to the DB, we print to stdout instead.
