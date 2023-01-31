@@ -86,8 +86,8 @@ def main(
 
     _log.info('Saving results to database')
 
-    pvsite_session = pvsite_connection.get_session()
-    insert_forecast_values(pvsite_session, results_df)
+    with pvsite_connection.get_session() as session:
+        insert_forecast_values(session, results_df)
 
 
 if __name__ == "__main__":
