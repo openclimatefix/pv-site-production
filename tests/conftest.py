@@ -1,7 +1,7 @@
 """ Pytest fixtures for tests """
+import os
 import uuid
 from datetime import datetime, timezone
-import os
 
 import pytest
 from pvsite_datamodel import ClientSQL, GenerationSQL, SiteSQL

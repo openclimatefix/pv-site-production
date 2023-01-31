@@ -19,7 +19,7 @@ def test_get_model():
 
     # We could use the sqlalchemy objects from the fixtures but we can also do everything from
     # scratch using the config.
-    engine = create_engine(config["pv_db_url"])
+    engine = create_engine(config["pvsite_db_url"])
     Session = sessionmaker(engine)
     pv_data_source = DbPvDataSource(Session, config["pv_metadata_path"])
 
