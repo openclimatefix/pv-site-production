@@ -67,10 +67,11 @@ def main(
     _log.debug("Connecting to pv database")
     url = config["pvsite_db_url"]
     pvsite_connection = SiteDatabaseConnection(url=url, echo=False)
+    session = pvsite_connection.get_session()
 
     # Wrap into a PV data source for the models.
     _log.debug("Creating PV data source")
-    pv_data_source = DbPvDataSource(pvsite_connection, config["pv_metadata_path"])
+    pv_data_source = DbPvDataSource(session, config["pv_metadata_path"])
 
     _log.debug("Loading model")
     model: PvSiteModel = get_model(config, pv_data_source)
@@ -86,8 +87,8 @@ def main(
 
     _log.info('Saving results to database')
 
-    with pvsite_connection.get_session() as session:
-        insert_forecast_values(session, results_df)
+    insert_forecast_values(session, results_df)
+    session.close()
 
 
 if __name__ == "__main__":
