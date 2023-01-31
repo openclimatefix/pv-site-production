@@ -1,6 +1,7 @@
 """ Pytest fixtures for tests """
 import uuid
 from datetime import datetime, timezone
+import os
 
 import pytest
 from pvsite_datamodel import ClientSQL, GenerationSQL, SiteSQL
@@ -17,6 +18,7 @@ def engine():
     with PostgresContainer("postgres:14.5") as postgres:
         # TODO need to setup postgres database with docker
         url = postgres.get_connection_url()
+        os.environ["OCF_PV_DB_URL"] = url
         engine = create_engine(url)
         Base.metadata.create_all(engine)
 
