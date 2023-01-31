@@ -7,8 +7,7 @@ from typing import Any
 
 
 def import_from_module(module_path: str) -> Any:
-    """
-    Import object from a dot-separated path.
+    """Import object from a dot-separated path.
 
     `func = import_from_module('some.module.func')`
 
@@ -24,8 +23,7 @@ def import_from_module(module_path: str) -> Any:
 def instantiate(
     cls: str, args: list[Any] | None = None, kwargs: dict[str, Any] | None = None
 ) -> Any:
-    """
-    Instantiate a python object from its class name and arguments.
+    """Instantiate a python object from its class name and arguments.
 
     This is useful to specify python objects in yaml config in a very flexible way.
 
@@ -38,7 +36,7 @@ def instantiate(
         args: Positional arguments to pass to the class.
         kwargs: Keyword arguments to passe to the class.
 
-    Returns
+    Returns:
     -------
         <cls>(*args, **kwargs)
     """
