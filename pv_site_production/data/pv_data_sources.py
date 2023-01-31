@@ -16,6 +16,7 @@ from psp.data.data_sources.pv import PvDataSource, min_timestamp
 from psp.ml.typings import PvId, Timestamp
 from pvsite_datamodel.read.generation import get_pv_generation_by_sites
 from pvsite_datamodel.sqlmodels import SiteSQL
+from pvsite_datamodel.connection import DatabaseConnection
 from sqlalchemy.orm import Session, sessionmaker
 
 # Meta keys that are still taken from our inferred metadata file.
@@ -42,16 +43,15 @@ class DbPvDataSource(PvDataSource):
 
     def __init__(
         self,
-        session_factory: sessionmaker,
+        session: Session,
         metadata_path: pathlib.Path | str,
     ):
         """Constructor"""
-        self._session_factory = session_factory
+        self._session = session
 
         # The info in the metadata file uses the client's ids, we'll need to map those to
         # site_uuids.
-        with session_factory() as session:
-            site_id_to_uuid = _get_site_client_id_to_uuid_mapping(session)
+        site_id_to_uuid = _get_site_client_id_to_uuid_mapping(session)
 
         # Fill in the metadata from the file.
         self._meta: dict[PvId, dict[str, float]] = {}
@@ -95,14 +95,13 @@ class DbPvDataSource(PvDataSource):
         site_uuids = pv_ids
 
         _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
-        with self._session_factory() as session:
-            generations = get_pv_generation_by_sites(
-                session=session,
-                start_utc=start_ts,
-                end_utc=end_ts,
-                # Convert to proper `UUID`s when we interact with the database.
-                site_uuids=[UUID(x) for x in site_uuids],
-            )
+        generations = get_pv_generation_by_sites(
+            session=self._session,
+            start_utc=start_ts,
+            end_utc=end_ts,
+            # Convert to proper `UUID`s when we interact with the database.
+            site_uuids=[UUID(x) for x in site_uuids],
+        )
 
         _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
 
@@ -160,9 +159,8 @@ class DbPvDataSource(PvDataSource):
 
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""
-        with self._session_factory() as session:
-            query = session.query(SiteSQL.site_uuid)
-            site_uuids = [str(row.site_uuid) for row in query]
+        query = self._session.query(SiteSQL.site_uuid)
+        site_uuids = [str(row.site_uuid) for row in query]
         _log.debug("%i site_uuids from DB", len(site_uuids))
         _log.debug("%i site_uuids from meta", len(self._meta))
         # Only keep the site_uuids for which we have metadata.

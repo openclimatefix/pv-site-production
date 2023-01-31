@@ -9,13 +9,13 @@ from pv_site_production.models.psp import get_model
 # from pv_site_production.models.cos.cos_model import get_model
 
 
-def test_common(db_session, Session):
+def test_common(db_session):
 
     pv_ids = [str(row.site_uuid) for row in db_session.query(SiteSQL)]
 
     assert len(pv_ids) > 0
 
-    pv_data_source = DbPvDataSource(Session, "tests/fixtures/pv_metadata.csv")
+    pv_data_source = DbPvDataSource(db_session, "tests/fixtures/pv_metadata.csv")
 
     model = get_model(
         {
