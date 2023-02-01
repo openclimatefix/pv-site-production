@@ -8,15 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import (
-    Base,
-    ClientSQL,
-    ForecastSQL,
-    GenerationSQL,
-    LatestForecastValueSQL,
-    SiteSQL,
-    StatusSQL,
-)
+from pvsite_datamodel.sqlmodels import Base, ClientSQL, GenerationSQL, SiteSQL, StatusSQL
 from pvsite_datamodel.write.datetime_intervals import get_or_else_create_datetime_interval
 from testcontainers.postgres import PostgresContainer
 
@@ -28,7 +20,7 @@ def database_connection():
         url = postgres.get_connection_url()
         os.environ["OCF_PV_DB_URL"] = url
 
-        database_connection = DatabaseConnection(url)
+        database_connection = DatabaseConnection(url, echo=False)
 
         engine = database_connection.engine
 
@@ -115,35 +107,6 @@ def db_data(database_connection):
                     datetime_interval_uuid=datetime_interval.datetime_interval_uuid,
                 )
                 session.add(generation)
-
-        session.commit()
-
-        # Forecast
-        forecast_version: str = "0.0.0"
-
-        for site in sites:
-            forecast = ForecastSQL(
-                forecast_uuid=uuid.uuid4(),
-                site_uuid=site.site_uuid,
-                forecast_version=forecast_version,
-            )
-            session.add(forecast)
-
-            for i in range(n_generations):
-                datetime_interval, _ = get_or_else_create_datetime_interval(
-                    session=session, start_time=start_times[i]
-                )
-
-                latest_forecast_value: LatestForecastValueSQL = LatestForecastValueSQL(
-                    latest_forecast_value_uuid=uuid.uuid4(),
-                    datetime_interval_uuid=datetime_interval.datetime_interval_uuid,
-                    forecast_generation_kw=i,
-                    forecast_uuid=forecast.forecast_uuid,
-                    site_uuid=site.site_uuid,
-                    forecast_version=forecast_version,
-                )
-
-                session.add(latest_forecast_value)
 
         session.commit()
 

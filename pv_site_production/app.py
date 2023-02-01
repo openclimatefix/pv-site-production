@@ -75,7 +75,7 @@ def main(
     _log.debug("Connecting to pv database")
     url = config["pv_db_url"]
 
-    database_connection = DatabaseConnection(url)
+    database_connection = DatabaseConnection(url, echo=False)
 
     # Wrap into a PV data source for the models.
     _log.debug("Creating PV data source")
