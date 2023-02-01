@@ -33,4 +33,4 @@ RUN poetry install
 # make sure 'src' is in python path - this is so imports work
 ENV PYTHONPATH=${PYTHONPATH}:/app/pv_site_production
 
-ENTRYPOINT ["poetry", "run", "python", "pv_site_production/app.py", "-c", "configuration.yaml"]
+ENTRYPOINT ["poetry", "run", "python", "pv_site_production/app.py", "-c", "configuration.yaml", "--write-to-db"]
