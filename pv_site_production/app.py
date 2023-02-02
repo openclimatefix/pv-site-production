@@ -35,7 +35,16 @@ _log = logging.getLogger(__name__)
     "timestamp",
     type=click.DateTime(formats=["%Y-%m-%d-%H-%M"]),
     default=None,
-    help='Date-time (UTC) at which to make the prediction. Defaults to "now".',
+    help='Date-time (UTC) at which we make the prediction. Defaults to "now".',
+)
+@click.option(
+    "--round-date-to-minutes",
+    type=int,
+    help="Round the time at which we make the prediction to nearest (in the past) N minutes."
+    " For instance, if it's 15:18 but we use `--round-date-to-minutes 10`, we'll do the predictions"
+    " as if it was 15:10."
+    " Should not be used if `--date` is used."
+    " Default: no rounding.",
 )
 @click.option(
     "--max-pvs",
@@ -55,8 +64,12 @@ def main(
     timestamp: datetime | None,
     max_pvs: int | None,
     write_to_db: bool,
+    round_date_to_minutes: int | None,
 ):
     """Main function"""
+
+    if timestamp is not None and round_date_to_minutes is not None:
+        raise RuntimeError("You can not use both --date and --round-date-to-minutes")
 
     _log.debug("Load the configuration file")
     # Typically the configuration will contain many placeholders pointing to environment variables.
@@ -69,6 +82,14 @@ def main(
 
     if timestamp is None:
         timestamp = datetime.utcnow()
+        if round_date_to_minutes:
+            timestamp = timestamp.replace(
+                minute=int(timestamp.minute / round_date_to_minutes) * round_date_to_minutes,
+                second=0,
+                microsecond=0,
+            )
+
+    _log.info(f"Making predictions with now={timestamp}.")
 
     get_model = import_from_module(config["run_model_func"])
 
@@ -95,19 +116,17 @@ def main(
 
     if write_to_db:
         _log.info("Writing forecasts to DB")
-
-        # TODO Make `insert_forecast_values` support (expect?) datetimes.
-        # Currently `insert_forecast_values` expects datetimes as string with ISO formatting.
-        results_df["target_datetime_utc"] = results_df["target_datetime_utc"].dt.strftime(
-            "%Y-%m-%dT%H:%M:%SZ"
-        )
-
         with database_connection.get_session() as session:  # type: ignore
             insert_forecast_values(session, results_df)
     else:
         # When we don't write to the DB, we print to stdout instead.
         for _, row in results_df.iterrows():
-            print(f"{row['pv_uuid']} | {row['target_datetime_utc']} | {row['forecast_kw']}")
+            print(
+                f"{row['pv_uuid']}"
+                f" | {row['target_start_utc']}"
+                f" | {row['target_end_utc']}"
+                f" | {row['forecast_kw']}"
+            )
 
 
 if __name__ == "__main__":

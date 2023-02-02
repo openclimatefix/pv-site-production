@@ -621,6 +621,21 @@ pycodestyle = ">=2.10.0,<2.11.0"
 pyflakes = ">=3.0.0,<3.1.0"
 
 [[package]]
+name = "freezegun"
+version = "1.2.2"
+description = "Let your Python tests travel through time"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "freezegun-1.2.2-py3-none-any.whl", hash = "sha256:ea1b963b993cb9ea195adbd893a48d573fda951b0da64f60883d7e988b606c9f"},
+    {file = "freezegun-1.2.2.tar.gz", hash = "sha256:cd22d1ba06941384410cd967d8a99d5ae2442f57dfafeff2fda5de8dc5c05446"},
+]
+
+[package.dependencies]
+python-dateutil = ">=2.7"
+
+[[package]]
 name = "fsspec"
 version = "2022.11.0"
 description = "File-system specification"
@@ -1850,14 +1865,14 @@ test = ["nose", "pytest", "pytest-cov", "pytest-mock", "pytest-remotedata", "pyt
 
 [[package]]
 name = "pvsite-datamodel"
-version = "0.1.19"
+version = "0.1.24"
 description = "SDK for interacting with the PVSite database"
 category = "main"
 optional = false
 python-versions = ">=3.10.0"
 files = [
-    {file = "pvsite-datamodel-0.1.19.tar.gz", hash = "sha256:042bb2884f4e539134427d4649c01abc1b01e2dda7310a9006396366d25b0df9"},
-    {file = "pvsite_datamodel-0.1.19-py3-none-any.whl", hash = "sha256:114c3baddde03b10769fc2a0afbd9286d11320c05067425fde5ecd864c079da0"},
+    {file = "pvsite-datamodel-0.1.24.tar.gz", hash = "sha256:9186615400c1ffd801f93c20246928b3858602492e86b2b752b2252d0af0a329"},
+    {file = "pvsite_datamodel-0.1.24-py3-none-any.whl", hash = "sha256:9058c0ca6545598eabf04fdadd10f18c4bf4c679d36ccd9db1c0e32262ad486f"},
 ]
 
 [package.dependencies]
@@ -2945,4 +2960,4 @@ jupyter = ["ipytree (>=0.2.2)", "ipywidgets (>=8.0.0)", "notebook"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "ed54959a38840a30a44e9f720183fa343748a8116d5dd27fee3d6bf255e7ed3a"
+content-hash = "03f319c4f826138b1ee7ec44e6afdd7bdbb53ad37effabaadfa0f1232a76823f"

@@ -14,7 +14,7 @@ s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"
 sqlalchemy = "^1.4.46"
 psp = {path = "pv-site-prediction", develop = true}
-pvsite-datamodel = "^0.1.19"
+pvsite-datamodel = "^0.1.24"
 
 [tool.poetry.group.dev.dependencies]
 pytest-cov = "^4.0.0"
@@ -28,6 +28,7 @@ pandas-stubs = "^1.5.2.230105"
 types-pyyaml = "^6.0.12.3"
 sqlalchemy-stubs = "^0.4"
 mypy = "^0.991"
+freezegun = "^1.2.2"
 
 [build-system]
 requires = ["poetry-core"]

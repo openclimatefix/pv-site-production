@@ -13,9 +13,10 @@ def apply_model(model: PvSiteModel, pv_ids: list[PvId], ts: Timestamp) -> pd.Dat
     """Run a model on PVs at a given timestamp.
 
     Returns a dataframe with the following columns
-        "target_datetime_utc"
         "forecast_kw"
         "pv_uuid"
+        "target_start_utc"
+        "target_end_utc"
     """
     records: list[dict] = []
 
@@ -29,8 +30,8 @@ def apply_model(model: PvSiteModel, pv_ids: list[PvId], ts: Timestamp) -> pd.Dat
                     # TODO Make sure we use the same units everywhere.
                     "forecast_kw": power / 1000 * 12,
                     "pv_uuid": pv_id,
-                    # TODO Does it make sense to use the middle of the horizon interval?
-                    "target_datetime_utc": ts + timedelta(minutes=(horizon[1] + horizon[0]) / 2),
+                    "target_start_utc": ts + timedelta(minutes=horizon[0]),
+                    "target_end_utc": ts + timedelta(minutes=horizon[1]),
                 }
             )
 
