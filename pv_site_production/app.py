@@ -28,6 +28,7 @@ _log = logging.getLogger(__name__)
     "config_path",
     type=click.Path(path_type=pathlib.Path),
     help="Config defining the model to use and its parameters.",
+    required=True,
 )
 @click.option(
     "--date",
