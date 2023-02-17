@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from psp.ml.typings import X
+from psp.typings import X
 
 from pv_site_production.models.cos.cos_model import get_model, make_fake_intensity
 

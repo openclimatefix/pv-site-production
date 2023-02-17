@@ -25,6 +25,8 @@ class NwpDataSource(NwpDataSourceBase):
         self._storage_kwargs = storage_kwargs
         self._open()
 
+        self._cache_dir = None
+
     def _open(self):
         path = self._path
 

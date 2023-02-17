@@ -15,8 +15,8 @@ from typing import Any
 
 import numpy as np
 from psp.data.data_sources.pv import PvDataSource
-from psp.ml.models.base import PvSiteModel, PvSiteModelConfig
-from psp.ml.typings import Features, X, Y
+from psp.models.base import PvSiteModel, PvSiteModelConfig
+from psp.typings import Features, Horizons, X, Y
 
 from pv_site_production.models.cos.intensities import make_fake_intensity
 
@@ -26,12 +26,13 @@ class CosModel(PvSiteModel):
 
     def get_features(self, x: X) -> Features:
         """Get a features dictionary from the input."""
-        return {"ts": x.ts}
+        # Features are supposed to be ndarrays but we know this won't actually break anything.
+        return {"ts": x.ts}  # type: ignore
 
     def predict_from_features(self, features: Features) -> Y:
         """Get the output from features."""
         ts = features["ts"]
-        tss = [ts + timedelta(minutes=f[1] - f[0]) for f in self.config.future_intervals]
+        tss = [ts + timedelta(minutes=f[1] - f[0]) for f in self.config.horizons]  # type: ignore
         powers = np.array([make_fake_intensity(ts) for ts in tss])
         return Y(powers=powers)
 
@@ -40,7 +41,7 @@ def get_model(config: dict[str, Any], pv_data_source: PvDataSource | None) -> Pv
     """Get a ready cosine model."""
     model_config = PvSiteModelConfig(
         # 15 minute itervervals for 48 hours.
-        future_intervals=[(i * 15, (i + 1) * 15) for i in range(4 * 48)],
+        horizons=Horizons(duration=15, num_horizons=4 * 48),
         blackout=0,
     )
     # TODO make the setup argument optional in pv-site-prediction.

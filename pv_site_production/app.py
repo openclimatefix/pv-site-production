@@ -9,7 +9,7 @@ from datetime import datetime
 
 import click
 import dotenv
-from psp.ml.models.base import PvSiteModel
+from psp.models.base import PvSiteModel
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.write import insert_forecast_values
 
@@ -107,16 +107,17 @@ def main(
     model: PvSiteModel = get_model(config, pv_data_source)
 
     pv_ids = pv_data_source.list_pv_ids()
-    _log.debug(f"Treating {len(pv_ids)} sites")
+    _log.debug(f"Found {len(pv_ids)} sites")
 
     if max_pvs is not None:
         pv_ids = pv_ids[:max_pvs]
+        _log.debug(f"Keeping only {len(pv_ids)} sites")
 
     _log.info("Applying model")
     results_df = apply_model(model, pv_ids=pv_ids, ts=timestamp)
 
     if write_to_db:
-        _log.info("Writing forecasts to DB")
+        _log.info(f"Writing f{len(results_df)} forecasts to DB")
         with database_connection.get_session() as session:  # type: ignore
             insert_forecast_values(session, results_df)
     else:

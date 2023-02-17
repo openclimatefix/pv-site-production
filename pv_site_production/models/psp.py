@@ -5,9 +5,9 @@ import logging
 from typing import Any
 
 from psp.data.data_sources.pv import PvDataSource
-from psp.ml.models.base import PvSiteModel
-from psp.ml.models.recent_history import SetupConfig
-from psp.ml.serialization import load_model
+from psp.models.base import PvSiteModel
+from psp.models.recent_history import SetupConfig
+from psp.serialization import load_model
 
 from pv_site_production.utils.imports import instantiate
 

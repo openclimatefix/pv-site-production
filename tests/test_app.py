@@ -38,8 +38,12 @@ def test_app(config_file: pathlib.Path, write_to_db: bool, db_session):
     if write_to_db:
         cmd_args.append("--write-to-db")
 
-    result = runner.invoke(main, cmd_args)
-    assert result.exit_code == 0, traceback.print_exception(result.exception)
+    result = runner.invoke(main, cmd_args, catch_exceptions=False)
+
+    if result.exit_code != 0:
+        traceback.print_exception(result.exception)
+
+    assert result.exit_code == 0
 
     # Without this the output to stdout/stderr is grabbed by click's test runner.
     print(result.output)

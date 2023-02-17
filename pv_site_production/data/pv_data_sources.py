@@ -13,7 +13,7 @@ from uuid import UUID
 import pandas as pd
 import xarray as xr
 from psp.data.data_sources.pv import PvDataSource, min_timestamp
-from psp.ml.typings import PvId, Timestamp
+from psp.typings import PvId, Timestamp
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.read.generation import get_pv_generation_by_sites
 from pvsite_datamodel.sqlmodels import SiteSQL
@@ -107,11 +107,11 @@ class DbPvDataSource(PvDataSource):
 
         _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
 
-        # Build a pandas dataframe of pv_id, timestamp and power.
+        # Build a pandas dataframe of id, timestamp and power.
         # This makes it easy to convert to an xarray.
         df = pd.DataFrame.from_records(
             {
-                "pv_id": str(g.site_uuid),
+                "id": str(g.site_uuid),
                 # We remove the timezone information since otherwise the timestamp index gets
                 # converted to an "object" index later. In any case we should have everything in
                 # UTC.
@@ -121,7 +121,7 @@ class DbPvDataSource(PvDataSource):
             for g in generations
         )
 
-        df = df.set_index(["pv_id", "ts"])
+        df = df.set_index(["id", "ts"])
 
         # Remove duplicate rows.
         # TODO This should not be necessary: we should be able to remove it once we insure the
@@ -147,7 +147,7 @@ class DbPvDataSource(PvDataSource):
         # Add the metadata as coordinates to the PVs in the xr.Dataset.
         da = da.assign_coords(
             {
-                key: ("pv_id", [meta[site_uuid][key] for site_uuid in site_uuids])
+                key: ("id", [meta[site_uuid][key] for site_uuid in site_uuids])
                 for key in META_FILE_KEYS + META_DB_KEYS
             }
         )
@@ -155,7 +155,7 @@ class DbPvDataSource(PvDataSource):
         # If the input was a scalar, we make sure the output is consistent, by slicing on the
         # (unique) PV.
         if was_scalar:
-            da = da.isel(pv_id=0)
+            da = da.isel(id=0)
 
         return da
 

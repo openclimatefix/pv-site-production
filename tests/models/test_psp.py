@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import yaml
-from psp.ml.typings import X
+from psp.typings import X
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import SiteSQL
 
@@ -24,5 +24,5 @@ def test_get_model():
         site = session.query(SiteSQL).first()
 
     y = model.predict(X(pv_id=str(site.site_uuid), ts=datetime(2022, 1, 1, 11, 50)))
-    # The fixture model was trained with 13 horizons.
-    assert y.powers.shape == (13,)
+    # The fixture model was trained with 48 * 4 horizons.
+    assert y.powers.shape == (48 * 4,)
