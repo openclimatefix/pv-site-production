@@ -120,6 +120,7 @@ def main(
         _log.info(f"Writing f{len(results_df)} forecasts to DB")
         with database_connection.get_session() as session:  # type: ignore
             insert_forecast_values(session, results_df)
+            session.commit()
     else:
         # When we don't write to the DB, we print to stdout instead.
         for _, row in results_df.iterrows():
