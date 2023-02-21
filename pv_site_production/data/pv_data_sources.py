@@ -15,9 +15,8 @@ import xarray as xr
 from psp.data.data_sources.pv import PvDataSource, min_timestamp
 from psp.typings import PvId, Timestamp
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.read.generation import get_pv_generation_by_sites
-from pvsite_datamodel.sqlmodels import SiteSQL
-from sqlalchemy.orm import Session
+from pvsite_datamodel.sqlmodels import GenerationSQL, SiteSQL
+from sqlalchemy.orm import Session, joinedload
 
 # Meta keys that are still taken from our inferred metadata file.
 META_FILE_KEYS = ["tilt", "orientation", "factor"]
@@ -97,13 +96,21 @@ class DbPvDataSource(PvDataSource):
 
         _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
         with self._database_connection.get_session() as session:  # type: ignore
-            generations = get_pv_generation_by_sites(
-                session=session,
-                start_utc=start_ts,
-                end_utc=end_ts,
-                # Convert to proper `UUID`s when we interact with the database.
-                site_uuids=[UUID(x) for x in site_uuids],
+            query = session.query(GenerationSQL).filter(
+                GenerationSQL.site_uuid.in_([UUID(x) for x in site_uuids])
             )
+
+            if start_ts is not None:
+                query = query.filter(GenerationSQL.start_utc >= start_ts)
+
+            if end_ts is not None:
+                # Note that we still filter on the `start_utc` field. This is because we assume that
+                # the "generation" power is punctual.
+                query = query.filter(GenerationSQL.start_utc < end_ts)
+
+            # Eagerly join the sites: we need its metadata.
+            query = query.options(joinedload(GenerationSQL.site))
+            generations = query.all()
 
         _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
 
@@ -115,8 +122,8 @@ class DbPvDataSource(PvDataSource):
                 # We remove the timezone information since otherwise the timestamp index gets
                 # converted to an "object" index later. In any case we should have everything in
                 # UTC.
-                "ts": g.datetime_interval.start_utc.replace(tzinfo=None),
-                "power": g.power_kw,
+                "ts": g.start_utc.replace(tzinfo=None),
+                "power": g.generation_power_kw,
             }
             for g in generations
         )

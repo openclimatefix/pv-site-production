@@ -2,23 +2,78 @@
 Apply the model to the PVs in the database and note the results.
 """
 
+import datetime as dt
 import logging
 import os
 import pathlib
-from datetime import datetime
+from uuid import UUID
 
 import click
 import dotenv
 from psp.models.base import PvSiteModel
+from psp.typings import PvId, Timestamp, X
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.write import insert_forecast_values
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
 from pv_site_production.data.pv_data_sources import DbPvDataSource
-from pv_site_production.models.common import apply_model
 from pv_site_production.utils.config import load_config
 from pv_site_production.utils.imports import import_from_module
 
 _log = logging.getLogger(__name__)
+
+
+def _run_model_and_save_for_one_pv(
+    database_connection: DatabaseConnection,
+    model: PvSiteModel,
+    pv_id: PvId,
+    timestamp: Timestamp,
+    write_to_db: bool,
+):
+    _log.info(f'Applying model on pv "{pv_id}"')
+
+    pred = model.predict(X(pv_id=pv_id, ts=timestamp))
+
+    site_uuid = UUID(pv_id)
+
+    # Assemble the data in ForecastValuesSQL rows for the database.
+    rows = [
+        dict(
+            site_uuid=site_uuid,
+            start_utc=timestamp + dt.timedelta(minutes=start),
+            end_utc=timestamp + dt.timedelta(minutes=end),
+            # TODO Make sure the units are correct.
+            forecast_power_kw=value * 1000 / 12.0,
+        )
+        for (start, end), value in zip(model.config.horizons, pred.powers)
+    ]
+
+    if write_to_db:
+        _log.info("Writing to DB")
+
+        with database_connection.get_session() as session:  # type: ignore
+            forecast = ForecastSQL(site_uuid=site_uuid, forecast_version="0.0.0")
+            session.add(forecast)
+            # Flush to get the Forecast's primary key.
+            session.flush()
+
+            # TODO Use bulk inserts. Perhaps wait for sqlalchemy 2.* where those have changed.
+            for row in rows:
+                session.add(
+                    ForecastValueSQL(
+                        **row,
+                        forecast_uuid=forecast.forecast_uuid,
+                    )
+                )
+            session.commit()
+    else:
+        # Write to stdout when we don't want to write in the database.
+        for row in rows:
+            print(
+                f"{row['site_uuid']}"
+                f" | {row['start_utc']}"
+                f" | {row['end_utc']}"
+                f" | {row['forecast_power_kw']}"
+            )
 
 
 @click.command()
@@ -62,7 +117,7 @@ _log = logging.getLogger(__name__)
 )
 def main(
     config_path: pathlib.Path,
-    timestamp: datetime | None,
+    timestamp: dt.datetime | None,
     max_pvs: int | None,
     write_to_db: bool,
     round_date_to_minutes: int | None,
@@ -82,7 +137,7 @@ def main(
     config = load_config(config_path, dotenv_variables | os.environ)
 
     if timestamp is None:
-        timestamp = datetime.utcnow()
+        timestamp = dt.datetime.utcnow()
         if round_date_to_minutes:
             timestamp = timestamp.replace(
                 minute=int(timestamp.minute / round_date_to_minutes) * round_date_to_minutes,
@@ -113,23 +168,14 @@ def main(
         pv_ids = pv_ids[:max_pvs]
         _log.debug(f"Keeping only {len(pv_ids)} sites")
 
-    _log.info("Applying model")
-    results_df = apply_model(model, pv_ids=pv_ids, ts=timestamp)
-
-    if write_to_db:
-        _log.info(f"Writing f{len(results_df)} forecasts to DB")
-        with database_connection.get_session() as session:  # type: ignore
-            insert_forecast_values(session, results_df)
-            session.commit()
-    else:
-        # When we don't write to the DB, we print to stdout instead.
-        for _, row in results_df.iterrows():
-            print(
-                f"{row['pv_uuid']}"
-                f" | {row['target_start_utc']}"
-                f" | {row['target_end_utc']}"
-                f" | {row['forecast_kw']}"
-            )
+    for pv_id in pv_ids:
+        _run_model_and_save_for_one_pv(
+            database_connection=database_connection,
+            model=model,
+            pv_id=pv_id,
+            timestamp=timestamp,
+            write_to_db=write_to_db,
+        )
 
 
 if __name__ == "__main__":

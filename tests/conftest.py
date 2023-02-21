@@ -3,13 +3,11 @@ Fixtures for testing
 """
 
 import os
-import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import Base, ClientSQL, GenerationSQL, SiteSQL, StatusSQL
-from pvsite_datamodel.write.datetime_intervals import get_or_else_create_datetime_interval
 from testcontainers.postgres import PostgresContainer
 
 
@@ -60,7 +58,6 @@ def db_data(database_connection):
         clients = []
         for i in range(n_clients):
             client = ClientSQL(
-                client_uuid=uuid.uuid4(),
                 client_name=f"testclient_{i}",
                 created_utc=datetime.now(timezone.utc),
             )
@@ -73,14 +70,12 @@ def db_data(database_connection):
         sites = []
         for i in range(n_sites):
             site = SiteSQL(
-                site_uuid=uuid.uuid4(),
                 client_uuid=clients[i % n_clients].client_uuid,
                 client_site_id=i + 1,
                 latitude=51,
                 longitude=3,
                 capacity_kw=4,
                 created_utc=datetime.now(timezone.utc),
-                updated_utc=datetime.now(timezone.utc),
                 ml_id=i,
             )
             session.add(site)
@@ -96,15 +91,11 @@ def db_data(database_connection):
 
         for site in sites:
             for i in range(n_generations):
-                datetime_interval, _ = get_or_else_create_datetime_interval(
-                    session=session, start_time=start_times[i]
-                )
-
                 generation = GenerationSQL(
-                    generation_uuid=uuid.uuid4(),
                     site_uuid=site.site_uuid,
-                    power_kw=i,
-                    datetime_interval_uuid=datetime_interval.datetime_interval_uuid,
+                    generation_power_kw=i,
+                    start_utc=start_times[i],
+                    end_utc=start_times[i] + timedelta(minutes=5),
                 )
                 session.add(generation)
 
@@ -112,7 +103,6 @@ def db_data(database_connection):
 
         for i in range(4):
             status = StatusSQL(
-                status_uuid=uuid.uuid4(),
                 status="OK",
                 message=f"Status {i}",
             )
