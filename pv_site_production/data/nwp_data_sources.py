@@ -1,7 +1,7 @@
 """
 NWP Data sources
 """
-import io
+
 from typing import Any
 
 import fsspec
@@ -36,12 +36,14 @@ class NwpDataSource(NwpDataSourceBase):
 
             if path.startswith("s3://"):
                 # loading netcdf file, download bytes and then load as xarray
-                with fsspec.open(path, mode="rb", **self._storage_kwargs) as f:
-                    file_bytes = f.read()
-
-                with io.BytesIO(file_bytes) as f:
-                    self._data = xr.load_dataset(f, engine="h5netcdf")
+                f = fsspec.open(path, mode="rb", **self._storage_kwargs)
+                # We can't close the file object because then we won't be able to access it when the
+                # model tries to read from it.
+                # The alternative would be to open/close in the `.at` and `.at_get` methods (see the
+                # parent class).
+                f = f.__enter__()
+                self._data = xr.open_dataset(f, engine="h5netcdf")
             else:
-                self._data = xr.load_dataset(path, engine="h5netcdf")
+                self._data = xr.open_dataset(path, engine="h5netcdf")
         else:
             raise NotImplementedError
