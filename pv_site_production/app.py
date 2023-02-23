@@ -18,6 +18,7 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from pv_site_production.data.pv_data_sources import DbPvDataSource
 from pv_site_production.utils.config import load_config
 from pv_site_production.utils.imports import import_from_module
+from pv_site_production.utils.profiling import profile
 
 _log = logging.getLogger(__name__)
 
@@ -29,9 +30,8 @@ def _run_model_and_save_for_one_pv(
     timestamp: Timestamp,
     write_to_db: bool,
 ):
-    _log.info(f'Applying model on pv "{pv_id}"')
-
-    pred = model.predict(X(pv_id=pv_id, ts=timestamp))
+    with profile(f'Applying model on pv "{pv_id}"'):
+        pred = model.predict(X(pv_id=pv_id, ts=timestamp))
 
     site_uuid = UUID(pv_id)
 
@@ -166,14 +166,14 @@ def main(
     database_connection = DatabaseConnection(url, echo=False)
 
     # Wrap into a PV data source for the models.
-    _log.debug("Creating PV data source")
+    _log.info("Creating PV data source")
     pv_data_source = DbPvDataSource(database_connection, config["pv_metadata_path"])
 
-    _log.debug("Loading model")
-    model: PvSiteModel = get_model(config, pv_data_source)
+    with profile("Loading model"):
+        model: PvSiteModel = get_model(config, pv_data_source)
 
     pv_ids = pv_data_source.list_pv_ids()
-    _log.debug(f"Found {len(pv_ids)} sites")
+    _log.info(f"Found {len(pv_ids)} sites")
 
     if max_pvs is not None:
         pv_ids = pv_ids[:max_pvs]
