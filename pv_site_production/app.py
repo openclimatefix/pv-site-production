@@ -177,7 +177,7 @@ def main(
 
     if max_pvs is not None:
         pv_ids = pv_ids[:max_pvs]
-        _log.debug(f"Keeping only {len(pv_ids)} sites")
+        _log.info(f"Keeping only {len(pv_ids)} sites")
 
     for pv_id in pv_ids:
         _run_model_and_save_for_one_pv(
