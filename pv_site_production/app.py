@@ -115,14 +115,25 @@ def _run_model_and_save_for_one_pv(
     help="Set this flag to actually write the results to the database."
     "By default we only print to stdout",
 )
+@click.option(
+    "--log-level",
+    default="warning",
+    help="Set the python logging log level",
+    show_default=True,
+)
 def main(
     config_path: pathlib.Path,
     timestamp: dt.datetime | None,
     max_pvs: int | None,
     write_to_db: bool,
     round_date_to_minutes: int | None,
+    log_level: str,
 ):
     """Main function"""
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+    )
 
     if timestamp is not None and round_date_to_minutes is not None:
         raise RuntimeError("You can not use both --date and --round-date-to-minutes")
@@ -179,8 +190,4 @@ def main(
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=getattr(logging, os.getenv("LOGLEVEL", "WARNING").upper()),
-        format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
-    )
     main()
