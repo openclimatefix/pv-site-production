@@ -25,4 +25,10 @@ def profile(msg: str | None = None, level: str = "info"):
     yield
     t1 = time.time()
 
-    log_func(f"Done in {t1 - t0:.3f}s")
+    done_line = f"Done in {t1 - t0:.3f}s"
+
+    # Repeating the `msg` in case of nested calls, where it's hard to know what it corresponds to.
+    if msg:
+        done_line = msg + " - " + done_line
+
+    log_func(done_line)
