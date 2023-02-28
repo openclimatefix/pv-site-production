@@ -38,7 +38,6 @@ def _run_model_and_save_for_one_pv(
     # Assemble the data in ForecastValuesSQL rows for the database.
     rows = [
         dict(
-            site_uuid=site_uuid,
             start_utc=timestamp + dt.timedelta(minutes=start),
             end_utc=timestamp + dt.timedelta(minutes=end),
             # TODO Make sure the units are correct.
@@ -51,7 +50,9 @@ def _run_model_and_save_for_one_pv(
         _log.info("Writing to DB")
 
         with database_connection.get_session() as session:  # type: ignore
-            forecast = ForecastSQL(site_uuid=site_uuid, forecast_version="0.0.0")
+            forecast = ForecastSQL(
+                site_uuid=site_uuid, forecast_version="0.0.0", timestamp_utc=timestamp
+            )
             session.add(forecast)
             # Flush to get the Forecast's primary key.
             session.flush()
@@ -67,13 +68,9 @@ def _run_model_and_save_for_one_pv(
             session.commit()
     else:
         # Write to stdout when we don't want to write in the database.
+        print(f'PV Site = "{pv_id}"')
         for row in rows:
-            print(
-                f"{row['site_uuid']}"
-                f" | {row['start_utc']}"
-                f" | {row['end_utc']}"
-                f" | {row['forecast_power_kw']}"
-            )
+            print(f" | {row['start_utc']}" f" | {row['end_utc']}" f" | {row['forecast_power_kw']}")
 
 
 @click.command()
