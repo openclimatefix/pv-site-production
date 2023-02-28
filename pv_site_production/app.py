@@ -40,8 +40,7 @@ def _run_model_and_save_for_one_pv(
         dict(
             start_utc=timestamp + dt.timedelta(minutes=start),
             end_utc=timestamp + dt.timedelta(minutes=end),
-            # TODO Make sure the units are correct.
-            forecast_power_kw=value * 1000 / 12.0,
+            forecast_power_kw=value,
         )
         for (start, end), value in zip(model.config.horizons, pred.powers)
     ]

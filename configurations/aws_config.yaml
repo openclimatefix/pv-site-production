@@ -1,5 +1,5 @@
 run_model_func: pv_site_production.models.psp.get_model
-model_path: s3://pvsite-ml-models-development/models/model-0.1.0.pkl
+model_path: s3://pvsite-ml-models-development/models/model-0.2.0.pkl
 
 nwp:
   cls: pv_site_production.data.nwp_data_sources.NwpDataSource
