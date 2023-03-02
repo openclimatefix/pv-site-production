@@ -4,7 +4,7 @@ model_path: s3://pvsite-ml-models-development/models/model-0.2.0.pkl
 nwp:
   cls: pv_site_production.data.nwp_data_sources.NwpDataSource
   kwargs:
-    path: s3://nowcasting-nwp-development/data/latest.netcdf
+    path: s3://nowcasting-nwp-development/data/latest.zarr
 
 pv_metadata_path: s3://pvsite-ml-models-development/meta_inferred.csv
 
