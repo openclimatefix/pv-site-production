@@ -56,13 +56,15 @@ class DbPvDataSource(PvDataSource):
         # Fill in the metadata from the file.
         self._meta: dict[PvId, dict[str, float]] = {}
 
-        # Make sure we load the `ss_id`s as `str` (if we cast it after, we get '1234.0' instead of
-        # '1234'). Everything else can be loaded as `float`.
+        # Make sure we load the `system_id`s as `str` (if we cast it after, we get '1234.0' instead
+        # of '1234'). Everything else can be loaded as `float`.
+        # Also note that we are assuming that we are loading Sheffield data and we use their
+        # `system_id` in here. During training everything is using the different `ss_id`.
         meta_dtype: dict[str, Any] = defaultdict(lambda: float)
-        meta_dtype["ss_id"] = str
+        meta_dtype["system_id"] = str
 
         for _, row in pd.read_csv(metadata_path, dtype=meta_dtype).iterrows():
-            client_site_id = str(row["ss_id"])
+            client_site_id = str(row["system_id"])
             site_uuid = site_id_to_uuid.get(client_site_id)
 
             if site_uuid is None:
