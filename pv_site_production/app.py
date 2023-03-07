@@ -29,9 +29,23 @@ def _run_model_and_save_for_one_pv(
     pv_id: PvId,
     timestamp: Timestamp,
     write_to_db: bool,
-):
+    print_to_stdout: bool,
+) -> bool:
+    """
+    Return:
+    ------
+        True on success and False if there was an error.
+    """
     with profile(f'Applying model on pv "{pv_id}"'):
-        pred = model.predict(X(pv_id=pv_id, ts=timestamp))
+        try:
+            pred = model.predict(X(pv_id=pv_id, ts=timestamp))
+        except Exception:
+            _log.error(
+                'There was an exception calling `model.predict` for pv_id="{pv_id}". Skipping.',
+                # Add the exception traceback.
+                exc_info=True,
+            )
+            return False
 
     site_uuid = UUID(pv_id)
 
@@ -65,11 +79,13 @@ def _run_model_and_save_for_one_pv(
                     )
                 )
             session.commit()
-    else:
+    elif print_to_stdout:
         # Write to stdout when we don't want to write in the database.
         print(f'PV Site = "{pv_id}"')
         for row in rows:
             print(f" | {row['start_utc']}" f" | {row['end_utc']}" f" | {row['forecast_power_kw']}")
+
+    return True
 
 
 @click.command()
@@ -112,6 +128,13 @@ def _run_model_and_save_for_one_pv(
     "By default we only print to stdout",
 )
 @click.option(
+    "--no-print-to-stdout",
+    is_flag=True,
+    default=False,
+    help="Do not print the forecasts to stdout, even if --write-to-db is not set."
+    " This is useful when debugging",
+)
+@click.option(
     "--log-level",
     default="warning",
     help="Set the python logging log level",
@@ -123,6 +146,7 @@ def main(
     max_pvs: int | None,
     write_to_db: bool,
     round_date_to_minutes: int | None,
+    no_print_to_stdout: bool,
     log_level: str,
 ):
     """Main function"""
@@ -175,14 +199,25 @@ def main(
         pv_ids = pv_ids[:max_pvs]
         _log.info(f"Keeping only {len(pv_ids)} sites")
 
+    num_successes = 0
     for pv_id in pv_ids:
-        _run_model_and_save_for_one_pv(
+        success = _run_model_and_save_for_one_pv(
             database_connection=database_connection,
             model=model,
             pv_id=pv_id,
             timestamp=timestamp,
             write_to_db=write_to_db,
+            print_to_stdout=not write_to_db and not no_print_to_stdout,
         )
+        if success:
+            num_successes += 1
+
+    num_errors = len(pv_ids) - num_successes
+
+    _log.info(
+        f"Ran successfully on {num_successes} PV sites ({num_successes / len(pv_ids) * 100:.1f} %) "
+    )
+    _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f} %)")
 
 
 if __name__ == "__main__":
