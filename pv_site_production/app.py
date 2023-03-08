@@ -62,25 +62,26 @@ def _run_model_and_save_for_one_pv(
     ]
 
     if write_to_db:
-        _log.info("Writing to DB")
-
-        with database_connection.get_session() as session:  # type: ignore
-            forecast = ForecastSQL(
-                site_uuid=site_uuid, forecast_version="0.0.0", timestamp_utc=timestamp
-            )
-            session.add(forecast)
-            # Flush to get the Forecast's primary key.
-            session.flush()
-
-            # TODO Use bulk inserts. Perhaps wait for sqlalchemy 2.* where those have changed.
-            for row in rows:
-                session.add(
-                    ForecastValueSQL(
-                        **row,
-                        forecast_uuid=forecast.forecast_uuid,
-                    )
+        with profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'):
+            with database_connection.get_session() as session:  # type: ignore
+                forecast = ForecastSQL(
+                    site_uuid=site_uuid, forecast_version="0.0.0", timestamp_utc=timestamp
                 )
-            session.commit()
+                session.add(forecast)
+                # Flush to get the Forecast's primary key.
+                session.flush()
+
+                # Insert all the forecast value objects in one efficient call.
+                session.bulk_save_objects(
+                    [
+                        ForecastValueSQL(
+                            **row,
+                            forecast_uuid=forecast.forecast_uuid,
+                        )
+                        for row in rows
+                    ]
+                )
+                session.commit()
     elif print_to_stdout:
         # Write to stdout when we don't want to write in the database.
         print(f'PV Site = "{pv_id}"')
