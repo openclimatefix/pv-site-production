@@ -1,13 +1,11 @@
-name: Tests
+name: Tests and lint
 
 on:
   push:
-  schedule:
-    - cron: "0 12 * * 1"
 
 jobs:
   push_to_registry:
-    name: Run tests
+    name: Run tests and lint
     runs-on: ubuntu-latest
     steps:
       - name: Install linux dependencies
@@ -29,7 +27,8 @@ jobs:
       - name: Run tests
         run: make test
 
+      - name: Run lint
+        run: make lint
+
       - name: "Upload coverage to Codecov"
         uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true

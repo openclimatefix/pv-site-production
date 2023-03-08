@@ -32,6 +32,8 @@ def _run_model_and_save_for_one_pv(
     print_to_stdout: bool,
 ) -> bool:
     """
+    Run model and save to database for one PV.
+
     Return:
     ------
         True on success and False if there was an error.
