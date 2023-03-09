@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pv-site-production"
-version = "0.1.34"
+version = "0.1.35"
 description = ""
 authors = ["Peter Dudfield"]
 readme = "README.md"
