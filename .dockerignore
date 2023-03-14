@@ -1,5 +1,5 @@
 *
 !py
-!services/inference
+!services
 !.git
 !.gitmodules
