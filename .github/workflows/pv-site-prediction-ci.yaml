@@ -1,9 +1,9 @@
-name: pv-site-production CI
+name: pv-site-prediction CI
 
 on:
   push:
     paths:
-      - py/pv-site-production/**
+      - py/pv-site-prediction/**
 
 jobs:
   push_to_registry:
@@ -24,13 +24,13 @@ jobs:
           version: 1.3.2
 
       - name: Install python dependencies
-        run: poetry install --no-interaction --directory py/pv-site-production
+        run: poetry install --no-interaction --directory py/pv-site-prediction
 
       - name: Run tests
-        run: cd py/pv-site-production && make test
+        run: cd py/pv-site-prediction && make test
 
       - name: Run lint
-        run: cd py/pv-site-production && make lint
+        run: cd py/pv-site-prediction && make lint
 
       - name: "Upload coverage to Codecov"
         uses: codecov/codecov-action@v3
