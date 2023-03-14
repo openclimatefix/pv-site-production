@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - py/pv_site_production/**
+      - .github/workflows/test-and-lint.yaml
 
 jobs:
   push_to_registry:
