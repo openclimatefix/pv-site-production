@@ -1,0 +1,10 @@
+*
+!pv_site_production
+!pv-site-prediction
+!infrastructure
+!pyproject.toml
+!poetry.lock
+!README.md
+!configurations
+!.git
+!.gitmodules

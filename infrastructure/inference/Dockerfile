@@ -12,23 +12,23 @@ COPY ./README.md /app/README.md
 COPY ./configurations/aws_config.yaml /app/configuration.yaml
 RUN pip install -U pip poetry
 
-# copy main files
-COPY ./pv_site_production /app/pv_site_production
-COPY ./tests /app/tests
 
 # set working directory
 WORKDIR /app
 
-# pull sub module, this should make the folder 'pv-site-prediction'
+# Submodules
 COPY ./.git /.git
 COPY ./.gitmodules /app/.gitmodules
 RUN git submodule update --init --recursive
-
-# verbose
 RUN mv /pv-site-prediction /app/pv-site-prediction
 
-# install files
-RUN poetry install
+# Install dependencies
+RUN poetry install --without dev --no-root
+
+# Install the package itself in a different step because it changes more often than the
+# dependencies.
+COPY ./pv_site_production /app/pv_site_production
+RUN poetry install --only-root
 
 # make sure 'src' is in python path - this is so imports work
 ENV PYTHONPATH=${PYTHONPATH}:/app/pv_site_production
