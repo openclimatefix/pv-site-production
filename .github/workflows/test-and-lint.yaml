@@ -3,7 +3,7 @@ name: pv-site-production CI
 on:
   push:
     paths:
-      - py/pv-site-production/**
+      - py/pv_site_production/**
 
 jobs:
   push_to_registry:
