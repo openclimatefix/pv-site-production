@@ -1839,7 +1839,7 @@ torch = ["torch (>=1.13.1,<2.0.0)"]
 
 [package.source]
 type = "directory"
-url = "pv-site-prediction"
+url = "../pv-site-prediction"
 
 [[package]]
 name = "psycopg2-binary"
@@ -3046,4 +3046,4 @@ jupyter = ["ipytree (>=0.2.2)", "ipywidgets (>=8.0.0)", "notebook"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "4f8d62082473081a2feec3526f23544ef2a856aec498b361bddc4f2901d121d6"
+content-hash = "c1558e811160fe43dade741c6912fe6b0ed440fb721bb847d17526a57c0bdb0f"
