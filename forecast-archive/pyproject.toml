@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "db-backup-and-clean"
+version = "0.1.0"
+description = ""
+authors = ["Open Climate Fix"]
+readme = "README.md"
+packages = [{include = "db_backup_and_clean"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pvsite-datamodel = "^0.1.32"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.1.0"
+ruff = "^0.0.255"
+mypy = "^1.1.1"
+ipython = "^8.11.0"
+pytest = "^7.2.2"
+pytest-cov = "^4.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

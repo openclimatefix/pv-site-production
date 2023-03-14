@@ -1,0 +1,8 @@
+# Hidden files at theroot
+.*
+
+# Any virtual environment
+*/.venv/*
+
+# git-ignored `data` directory at the root
+data

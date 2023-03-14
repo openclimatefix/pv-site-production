@@ -1,17 +1,29 @@
-SRC=pv_site_production tests
+#
+# Makefile to conveniently lint/format/test/build everything.
+#
 
-.PHONY: lint
-lint:
-	poetry run flake8 $(SRC)
-	poetry run pydocstyle $(SRC)
-	poetry run mypy $(SRC)
+SERVICES=inference forecast-archive
 
+lint-%:
+	$(MAKE) -C $* lint
 
-.PHONY: format
-format:
-	poetry run isort $(SRC)
-	poetry run black $(SRC)
+lint: $(addprefix lint-,$(SERVICES))
 
-.PHONY: test
-test:
-	poetry run pytest --cov=pv_site_production tests --cov-report xml $(ARGS)
+format-%:
+	$(MAKE) -C $* format
+
+format: $(addprefix format-,$(SERVICES))
+
+test-%:
+	$(MAKE) -C $* test
+
+test: $(addprefix test-,$(SERVICES))
+
+build-%:
+	docker build . -f infrastructure/Dockerfile.$*
+
+build: $(addprefix build-,$(SERVICES))
+
+all: lint test build
+
+.PHONY: lint test build all

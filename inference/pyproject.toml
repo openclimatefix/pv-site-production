@@ -3,7 +3,6 @@ name = "pv-site-production"
 version = "0.1.37"
 description = ""
 authors = ["Peter Dudfield"]
-readme = "README.md"
 packages = [{include = "pv_site_production"}]
 
 [tool.poetry.dependencies]
@@ -13,7 +12,7 @@ pandas = "^1.5.2"
 s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"
 sqlalchemy = "^1.4.46"
-psp = {path = "pv-site-prediction", develop = true}
+psp = {path = "../pv-site-prediction"}
 pvsite-datamodel = "^0.1.30"
 
 

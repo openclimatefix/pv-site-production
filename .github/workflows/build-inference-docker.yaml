@@ -1,13 +1,10 @@
-name: Build docker
+name: Build inference docker
 
 on:
   push:
-  schedule:
-    - cron: "0 12 * * 1"
 
 jobs:
-  push_to_registry:
-    name: Run tests
+  build-inference-docker:
     runs-on: ubuntu-latest
     steps:
 
@@ -17,4 +14,4 @@ jobs:
           submodules: true
 
       - name: Build
-        run: docker build . -f infrastructure/Dockerfile
+        run: make build-inference

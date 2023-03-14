@@ -133,3 +133,5 @@ dmypy.json
 
 # IDE
 .idea
+
+/data

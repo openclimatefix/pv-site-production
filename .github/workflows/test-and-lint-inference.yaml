@@ -1,10 +1,10 @@
-name: Tests and lint
+name: Tests and lint inference service
 
 on:
   push:
 
 jobs:
-  push_to_registry:
+  test_and_lint:
     name: Run tests and lint
     runs-on: ubuntu-latest
     steps:
@@ -22,13 +22,13 @@ jobs:
           version: 1.3.2
 
       - name: Install python dependencies
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --directory inference
 
       - name: Run tests
-        run: make test
+        run: cd inference && make test
 
       - name: Run lint
-        run: make lint
+        run: cd inference && make lint
 
       - name: "Upload coverage to Codecov"
         uses: codecov/codecov-action@v3

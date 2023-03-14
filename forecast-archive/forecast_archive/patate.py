@@ -1,0 +1,2 @@
+def patate():
+    print("patate")
