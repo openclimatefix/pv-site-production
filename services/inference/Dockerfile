@@ -6,15 +6,14 @@ RUN apt-get update -y
 RUN apt-get install gcc g++ libgeos-dev -y git -y pkg-config -y libhdf5-dev
 
 # copy files requirements
-COPY ./pyproject.toml /app/pyproject.toml
-COPY ./poetry.lock /app/poetry.lock
-COPY ./README.md /app/README.md
-COPY ./configurations/aws_config.yaml /app/configuration.yaml
+COPY ./py/pv_site_production/pyproject.toml /app/pyproject.toml
+COPY ./py/pv_site_production/poetry.lock /app/poetry.lock
+COPY ./services/inference/aws_config.yaml /app/configuration.yaml
+
 RUN pip install -U pip poetry
 
 # copy main files
-COPY ./pv_site_production /app/pv_site_production
-COPY ./tests /app/tests
+COPY ./py/pv_site_production/pv_site_production /app/pv_site_production
 
 # set working directory
 WORKDIR /app
@@ -24,11 +23,12 @@ COPY ./.git /.git
 COPY ./.gitmodules /app/.gitmodules
 RUN git submodule update --init --recursive
 
+
 # verbose
-RUN mv /pv-site-prediction /app/pv-site-prediction
+COPY py/pv-site-prediction /app/pv-site-prediction
 
 # install files
-RUN poetry install
+RUN poetry install --without dev
 
 # make sure 'src' is in python path - this is so imports work
 ENV PYTHONPATH=${PYTHONPATH}:/app/pv_site_production
