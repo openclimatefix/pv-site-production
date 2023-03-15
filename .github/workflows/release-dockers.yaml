@@ -1,0 +1,27 @@
+name: Bump version and release dockers
+on:
+  push:
+    branches: main
+
+jobs:
+  bump-version:
+    uses: openclimatefix/.github/.github/workflows/bump-version.yml@standalone-release
+    id: bumper
+
+  release-inference-docker:
+    needs: bump-version
+    secrets: inherit
+    uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@standalone-release
+    with:
+      image_base_name: pvsite_forecast
+      docker_file: infrastructure/Dockerfile.inference
+      tag_value: ${{ jobs.bumper.outputs.new_ver }}
+
+  release-forecast-archive-docker:
+    needs: bump-version
+    uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@standalone-release
+    secrets: inherit
+    with:
+      image_base_name: pvsite_forecast_archive
+      docker_file: infrastructure/Dockerfile.forecast-archive
+      tag_value: ${{ jobs.bumper.outputs.new_ver }}

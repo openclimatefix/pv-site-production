@@ -1,19 +1,21 @@
 SRC=forecast_archive tests
 
-lint:
+.venv: pyproject.toml poetry.lock
+	poetry install
+	# Make sure the date of `.venv` is after `pyproject.toml`
+	touch .venv
+
+deps: .venv
+
+lint: deps
 	poetry run ruff $(SRC)
 	poetry run black --check $(SRC)
 
-format:
+format: deps
 	poetry run ruff --fix $(SRC)
 	poetry run black $(SRC)
 
-test:
+test: deps
 	poetry run pytest --cov=forecast_archive tests --cov-report xml
 
-build:
-	docker build .
-
-all: lint test build
-
-.PHONY: lint format test build all
+.PHONY: lint format test deps

@@ -32,7 +32,3 @@ Lint the code
 Run the tests
 
     make test
-
-Run all of the above
-
-    make all

@@ -7,7 +7,6 @@ packages = [{include = "pv_site_production"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-pandera = "^0.13.4"
 pandas = "^1.5.2"
 s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"

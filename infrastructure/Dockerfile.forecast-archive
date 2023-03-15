@@ -1,1 +1,21 @@
 FROM python:3.10-slim
+
+RUN pip install -U pip poetry==1.3.2
+
+# set working directory
+WORKDIR /app
+
+# copy files requirements
+COPY ./forecast-archive/pyproject.toml /app/pyproject.toml
+COPY ./forecast-archive/poetry.lock /app/poetry.lock
+
+# Install dependencies
+RUN poetry install --without dev --no-root
+
+# Install the package itself in a different step because it changes more often than the
+# dependencies.
+COPY ./forecast-archive/forecast_archive /app/forecast_archive
+RUN poetry install --only-root
+
+# FIXME add --do-delete argument - the default behaviour is a dry run.
+ENTRYPOINT ["poetry", "run", "python", "forecast_archive/app.py", "--date", '`date -u --date="$3 day ago" "+%Y-%m-%d %H:%M"`', "--sleep", "5"]
