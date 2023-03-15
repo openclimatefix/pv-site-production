@@ -28,7 +28,7 @@ RUN git submodule update --init --recursive
 RUN mv /pv-site-prediction /app/pv-site-prediction
 
 # install files
-RUN poetry install
+RUN poetry install --without dev
 
 # make sure 'src' is in python path - this is so imports work
 ENV PYTHONPATH=${PYTHONPATH}:/app/pv_site_production
