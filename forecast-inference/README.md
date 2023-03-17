@@ -13,9 +13,10 @@
     brew install \
         geos
 
-## Entry point
+## Running the service
 
 ```bash
+poetry install
 poetry run python forecast_inference/app.py
 ```
 

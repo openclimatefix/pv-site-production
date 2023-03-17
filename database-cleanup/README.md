@@ -2,9 +2,10 @@
 
 This service is responsible to remove old forecasts from the database and archive them.
 
-## Entry point
+## Running the service
 
 ```bash
+poetry install
 DB_URL=<your_db_url> poetry run python database_cleanup/app.py
 ```
 
