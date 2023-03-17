@@ -1,0 +1,21 @@
+FROM python:3.10-slim
+
+RUN pip install -U pip poetry==1.3.2
+
+# set working directory
+WORKDIR /app
+
+# copy files requirements
+COPY ./database-cleanup/pyproject.toml /app/pyproject.toml
+COPY ./database-cleanup/poetry.lock /app/poetry.lock
+
+# Install dependencies
+RUN poetry install --without dev --no-root
+
+# Install the package itself in a different step because it changes more often than the
+# dependencies.
+COPY ./database-cleanup/database_cleanup /app/database_cleanup
+RUN poetry install --only-root
+
+# FIXME add --do-delete argument - the default behaviour is a dry run.
+ENTRYPOINT ["poetry", "run", "python", "database_cleanup/app.py", "--date", '`date -u --date="$3 day ago" "+%Y-%m-%d %H:%M"`', "--sleep", "5"]

@@ -1,0 +1,30 @@
+FROM python:3.10-slim
+
+# install extra requirements
+RUN apt-get clean
+RUN apt-get update -y
+RUN apt-get install gcc g++ libgeos-dev -y git -y pkg-config -y libhdf5-dev
+
+RUN pip install -U pip poetry
+
+# set working directory
+WORKDIR /app
+
+# copy files requirements
+COPY ./forecast-inference/pyproject.toml /app/pyproject.toml
+COPY ./forecast-inference/poetry.lock /app/poetry.lock
+COPY ./forecast-inference/aws_config.yaml /app/configuration.yaml
+COPY ./pv-site-prediction /pv-site-prediction
+
+# Install dependencies
+RUN poetry install --without dev --no-root
+
+# Install the package itself in a different step because it changes more often than the
+# dependencies.
+COPY ./forecast-inference/forecast_inference /app/forecast_inference
+RUN poetry install --only-root
+
+# Note that we round down the time at which we make the prediction to 15 minutes.
+# This means that if we don't want predictions to be (up-to) 15 minute late,
+# we need to make sure this runs *right after* these "round" times.
+ENTRYPOINT ["poetry", "run", "python", "forecast_inference/app.py", "-c", "configuration.yaml", "--write-to-db", "--round-date-to-minutes", "15", "--log-level", "info"]

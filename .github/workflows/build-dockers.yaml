@@ -4,7 +4,7 @@ on:
   push:
 
 jobs:
-  build-forecast-archive-docker:
+  build-database-cleanup-docker:
     runs-on: ubuntu-latest
     steps:
 
@@ -12,9 +12,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build
-        run: make build-forecast-archive
+        run: make build-database-cleanup
 
-  build-inference-docker:
+  build-forecast-inference-docker:
     runs-on: ubuntu-latest
     steps:
 
@@ -24,4 +24,4 @@ jobs:
           submodules: true
 
       - name: Build
-        run: make build-inference
+        run: make build-forecast-inference

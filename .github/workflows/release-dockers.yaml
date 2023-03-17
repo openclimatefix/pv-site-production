@@ -8,20 +8,20 @@ jobs:
     uses: openclimatefix/.github/.github/workflows/bump-version.yml@standalone-release
     id: bumper
 
-  release-inference-docker:
+  release-forecast-inference-docker:
     needs: bump-version
-    secrets: inherit
     uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@standalone-release
+    secrets: inherit
     with:
       image_base_name: pvsite_forecast
-      docker_file: infrastructure/Dockerfile.inference
+      docker_file: infrastructure/Dockerfile.forecast-inference
       tag_value: ${{ jobs.bumper.outputs.new_ver }}
 
-  release-forecast-archive-docker:
+  release-database-cleanup-docker:
     needs: bump-version
     uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@standalone-release
     secrets: inherit
     with:
-      image_base_name: pvsite_forecast_archive
-      docker_file: infrastructure/Dockerfile.forecast-archive
+      image_base_name: pvsite_database_cleanup
+      docker_file: infrastructure/Dockerfile.database-cleanup
       tag_value: ${{ jobs.bumper.outputs.new_ver }}

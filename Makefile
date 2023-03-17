@@ -2,7 +2,7 @@
 # Makefile to conveniently lint/format/test/build everything.
 #
 
-SERVICES=inference forecast-archive
+SERVICES=forecast-inference database-cleanup
 
 lint-%:
 	$(MAKE) -C $* lint

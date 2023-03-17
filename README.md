@@ -7,9 +7,9 @@
 
 At the core of each service is a self-contained python package. See the individual directories:
 
-[`./inference`][infe]: Inference service
+[`./forecast-inference`][infe]: Service that runs the forecasting model in inference
 
-[`./forecast-archive`][arc]: Service that archives the forecasts to keep the database small
+[`./database-cleanup`][arc]: Service that archives the forecasts to keep the database small
 
 
 ## Development
@@ -26,5 +26,5 @@ Optionally run everything in parallel:
 
 
 [inf]: ./infrastructure
-[infe]: ./inference
-[arc]: ./forecast-archive
+[infe]: ./forecast-inference
+[arc]: ./database-cleanup
