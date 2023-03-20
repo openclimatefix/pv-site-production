@@ -5,11 +5,11 @@ on:
 
 jobs:
   bump-version:
-    uses: openclimatefix/.github/.github/workflows/bump-version.yml@v1.1.0-rc.2
+    uses: openclimatefix/.github/.github/workflows/bump-version.yml@v1
 
   release-forecast-inference-docker:
     needs: bump-version
-    uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@v1.1.0-rc.2
+    uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@v1
     with:
       image_base_name: pvsite_forecast
       docker_file: infrastructure/Dockerfile.forecast-inference
@@ -21,7 +21,7 @@ jobs:
 
   release-database-cleanup-docker:
     needs: bump-version
-    uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@v1.1.0-rc.2
+    uses: openclimatefix/.github/.github/workflows/docker-release-only.yml@v1
     with:
       image_base_name: pvsite_database_cleanup
       docker_file: infrastructure/Dockerfile.database-cleanup
