@@ -60,7 +60,7 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
 )
 @click.option(
     "--batch-size",
-    default=10,
+    default=100,
     help="Number of forecasts to delete in one batch."
     " (Note that this means orders of magnitude more Forecast *Values*).",
     show_default=True,

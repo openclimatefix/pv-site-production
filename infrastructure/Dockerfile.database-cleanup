@@ -17,4 +17,4 @@ RUN poetry install --without dev --no-root
 COPY ./database-cleanup/database_cleanup /app/database_cleanup
 RUN poetry install --only-root
 
-ENTRYPOINT ["poetry", "run", "python", "database_cleanup/app.py", "--do-delete"]
+ENTRYPOINT ["poetry", "run", "python", "database_cleanup/app.py", "--do-delete", "--log-level", "debug"]
