@@ -17,5 +17,4 @@ RUN poetry install --without dev --no-root
 COPY ./database-cleanup/database_cleanup /app/database_cleanup
 RUN poetry install --only-root
 
-# FIXME add --do-delete argument - the default behaviour is a dry run.
-ENTRYPOINT ["poetry", "run", "python", "database_cleanup/app.py", "--sleep", "5"]
+ENTRYPOINT ["poetry", "run", "python", "database_cleanup/app.py", "--do-delete"]
