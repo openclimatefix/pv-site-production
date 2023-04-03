@@ -5,6 +5,7 @@ database with work.
 """
 
 import contextlib
+import datetime
 import datetime as dt
 import logging
 import os
@@ -53,7 +54,8 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
 
 @click.command()
 @click.option(
-    "--date", required=True, help="Datetime (UTC) before which to delete, format: YYYY-MM-DD HH:mm"
+    "--date", required=False, help="Datetime (UTC) before which to delete, format: YYYY-MM-DD HH:mm",
+    default=(datetime.date.today() - datetime.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
 )
 @click.option(
     "--batch-size",
@@ -87,6 +89,8 @@ def main(date: dt.datetime, batch_size: int, sleep: int, do_delete: bool, log_le
     engine = sa.create_engine(db_url)
     Session = sessionmaker(engine, future=True)
     max_date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+
+    _log.info(f"Deleting forecasts made before {date} (UTC).")
 
     num_forecast_deleted = 0
 
