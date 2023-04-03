@@ -54,8 +54,10 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
 
 @click.command()
 @click.option(
-    "--date", required=False, help="Datetime (UTC) before which to delete, format: YYYY-MM-DD HH:mm",
-    default=(datetime.date.today() - datetime.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
+    "--date",
+    required=False,
+    help="Datetime (UTC) before which to delete, format: YYYY-MM-DD HH:mm",
+    default=(datetime.date.today() - datetime.timedelta(days=3)).strftime("%Y-%m-%d 00:00"),
 )
 @click.option(
     "--batch-size",
