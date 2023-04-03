@@ -125,3 +125,50 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
         .where(ForecastSQL.site_uuid == site_uuid)
     ).one()
     assert num_values_left == expected * num_values
+
+
+@freeze_time("2020-01-11 00:01")
+@pytest.mark.parametrize("do_delete", [True, False])
+def test_app_dry_run(session: Session, site, do_delete: bool):
+    # We'll only consider this site.
+    site_uuid = site.site_uuid
+
+    # Write some forecasts to the database for our site.
+    num_forecasts = 10
+    num_values = 9
+
+    timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]
+
+    _add_foreasts(
+        session,
+        site_uuid=site_uuid,
+        timestamps=timestamps,
+        num_values=num_values,
+        frequency=1,
+    )
+
+    args = []
+    if do_delete:
+        args.append("--do-delete")
+
+    # Run the script.
+    _run_cli(main, args)
+
+    expected = 3 if do_delete else 10
+
+    # Check that we have the right number of rows left.
+    # Only check for the site_uuid that we considered.
+    num_forecasts_left = session.scalars(
+        sa.select(sa.func.count())
+        .select_from(ForecastSQL)
+        .where(ForecastSQL.site_uuid == site_uuid)
+    ).one()
+    assert num_forecasts_left == expected
+
+    num_values_left = session.scalars(
+        sa.select(sa.func.count())
+        .select_from(ForecastValueSQL)
+        .join(ForecastSQL)
+        .where(ForecastSQL.site_uuid == site_uuid)
+    ).one()
+    assert num_values_left == expected * num_values
