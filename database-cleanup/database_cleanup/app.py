@@ -55,8 +55,8 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
 @click.option(
     "--date",
     required=False,
-    help="Datetime (UTC) before which to delete, format: YYYY-MM-DD HH:mm",
-    default=(dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00"),
+    help="Datetime (UTC) before which to delete, format: YYYY-MM-DD HH:mm."
+    ' Defaults to "00:00, 3 days ago".',
 )
 @click.option(
     "--batch-size",
@@ -86,12 +86,19 @@ def main(date: dt.datetime, batch_size: int, sleep: int, do_delete: bool, log_le
         format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
     )
 
+    if date is None:
+        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
+    else:
+        date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+
     db_url = os.environ["DB_URL"]
     engine = sa.create_engine(db_url)
     Session = sessionmaker(engine, future=True)
-    max_date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
 
-    _log.info(f"Deleting forecasts made before {date} (UTC).")
+    if do_delete:
+        _log.info(f"Deleting forecasts made before {date} (UTC).")
+    else:
+        _log.info(f"Would delete forecasts made before {date} (UTC).")
 
     num_forecast_deleted = 0
 
@@ -99,7 +106,7 @@ def main(date: dt.datetime, batch_size: int, sleep: int, do_delete: bool, log_le
         with Session.begin() as session:
             forecast_uuids = _get_forecasts(
                 session,
-                max_date=max_date,
+                max_date=date,
                 limit=batch_size,
             )
 

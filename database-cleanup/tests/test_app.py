@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 from click.testing import CliRunner
 from database_cleanup.app import main
+from freezegun import freeze_time
 from pvsite_datamodel.sqlmodels import ClientSQL, ForecastSQL, ForecastValueSQL, SiteSQL
 from sqlalchemy.orm import Session
 
@@ -63,10 +64,13 @@ def site(session):
     return site
 
 
-@pytest.mark.parametrize("batch_size", [None, 10, 1000])
+@freeze_time("2020-01-11 00:01")
+@pytest.mark.parametrize("batch_size", [None, 5, 20])
 @pytest.mark.parametrize(
     "date_str,expected",
     [
+        # `None` == use default, which means '2020-01-08'
+        [None, 3],
         ["2019-12-31 23:59", 10],
         ["2020-01-01 00:00", 10],
         ["2020-01-02 00:00", 9],
@@ -75,7 +79,7 @@ def site(session):
         ["2020-01-30 00:00", 0],
     ],
 )
-def test_app(session: Session, site, batch_size: int, date_str: str, expected: int):
+def test_app(session: Session, site, batch_size: int, date_str: str | None, expected: int):
     # We'll only consider this site.
     site_uuid = site.site_uuid
 
@@ -95,7 +99,10 @@ def test_app(session: Session, site, batch_size: int, date_str: str, expected: i
     )
 
     # Run the script.
-    args = ["--date", date_str, "--do-delete"]
+    args = ["--do-delete"]
+
+    if date_str is not None:
+        args.extend(["--date", date_str])
 
     if batch_size is not None:
         args.extend(["--batch-size", str(batch_size)])
