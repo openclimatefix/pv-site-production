@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import sqlalchemy as sa
 import yaml
 from psp.typings import X
@@ -10,7 +8,7 @@ from forecast_inference.data.pv_data_sources import DbPvDataSource
 from forecast_inference.models.psp import get_model
 
 
-def test_get_model():
+def test_get_model(now):
     with open("tests/fixtures/model_configs/psp.yaml") as f:
         config = yaml.safe_load(f)
 
@@ -24,6 +22,6 @@ def test_get_model():
     with database_connection.get_session() as session:
         site: SiteSQL = session.scalars(sa.select(SiteSQL).limit(1)).one()
 
-    y = model.predict(X(pv_id=str(site.site_uuid), ts=datetime(2022, 1, 1, 11, 50)))
+    y = model.predict(X(pv_id=str(site.site_uuid), ts=now))
     # The fixture model was trained with 48 * 4 horizons.
     assert y.powers.shape == (48 * 4,)

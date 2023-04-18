@@ -3,11 +3,11 @@ import pathlib
 from datetime import datetime
 
 import pytest
-from click.testing import CliRunner
 from freezegun import freeze_time
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
 from forecast_inference.app import main
+from forecast_inference.utils.testing import run_click_script
 
 CONFIG_FIXTURES = [
     x for x in pathlib.Path("tests/fixtures/model_configs").iterdir() if x.suffix == ".yaml"
@@ -16,7 +16,7 @@ CONFIG_FIXTURES = [
 
 @pytest.mark.parametrize("config_file", CONFIG_FIXTURES)
 @pytest.mark.parametrize("write_to_db", [True, False])
-def test_app(config_file: pathlib.Path, write_to_db: bool, db_session):
+def test_app(config_file: pathlib.Path, write_to_db: bool, db_session, now):
 
     # The script creates its own Database Connection object so it's not possible to use the
     # `db_session` defined in `conftest.py` that automatically removes the rows.
@@ -31,21 +31,11 @@ def test_app(config_file: pathlib.Path, write_to_db: bool, db_session):
 
     num_rows_before = get_num_rows()
 
-    runner = CliRunner()
-
-    cmd_args = ["--config", str(config_file), "--date", "2022-1-1-11-50"]
+    cmd_args = ["--config", str(config_file), "--date", now.strftime("%Y-%m-%d-%H-%M")]
     if write_to_db:
         cmd_args.append("--write-to-db")
 
-    result = runner.invoke(main, cmd_args, catch_exceptions=True)
-
-    # Without this the output to stdout/stderr is grabbed by click's test runner.
-    print(result.output)
-
-    # In case of an exception, raise it so that the test fails with the exception.
-    if result.exception:
-        raise result.exception
-
+    result = run_click_script(main, cmd_args)
     assert result.exit_code == 0
 
     num_rows_after = get_num_rows()
@@ -59,8 +49,7 @@ def test_app(config_file: pathlib.Path, write_to_db: bool, db_session):
             assert num_rows == num_rows_before[table_name]
 
 
-def test_app_can_not_use_both_date_and_round_to_minutes():
-    runner = CliRunner()
+def test_app_can_not_use_both_date_and_round_to_minutes(now):
     cmd_args = [
         "--config",
         "tests/fixtures/model_configs/cos.yaml",
@@ -70,7 +59,7 @@ def test_app_can_not_use_both_date_and_round_to_minutes():
         "10",
     ]
 
-    result = runner.invoke(main, cmd_args)
+    result = run_click_script(main, cmd_args)
     assert result.exit_code != 0
     assert "can not use both" in str(result.exception)
 
@@ -101,7 +90,6 @@ def test_app_no_round_date(round_to, timestamp, expected_timestamp, caplog):
 
     # Here we make sure that datetime.datetime.utcnow() == `timestamp`.
     with freeze_time(timestamp):
-        runner = CliRunner()
         cmd_args = [
             "--config",
             "tests/fixtures/model_configs/cos.yaml",
@@ -114,7 +102,7 @@ def test_app_no_round_date(round_to, timestamp, expected_timestamp, caplog):
                 ]
             )
 
-        runner.invoke(main, cmd_args)
+        run_click_script(main, cmd_args)
 
         # Check that we logged the right "now" timestamp.
         assert f"Making predictions with now={expected_timestamp}" in caplog.text

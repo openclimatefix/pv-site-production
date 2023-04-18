@@ -3,12 +3,20 @@ Fixtures for testing
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
+from freezegun import freeze_time
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import Base, ClientSQL, GenerationSQL, SiteSQL, StatusSQL
 from testcontainers.postgres import PostgresContainer
+
+
+@pytest.fixture(scope="session", autouse=True)
+def now():
+    """Set a deterministic "now" time for all the tests."""
+    with freeze_time("2020-01-01 12:00"):
+        yield datetime.utcnow()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -43,11 +51,9 @@ def db_session(database_connection):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def db_data(database_connection):
+def db_data(database_connection, now):
     """Fill in the database with some initial data."""
 
-    # Those fixtures are inspired from:
-    # https://github.com/openclimatefix/pvsite-datamodel/blob/ab7478b0a8c6f0bc06d998817622f7a80e6f6ca3/sdk/python/tests/conftest.py
     with database_connection.get_session() as session:
 
         n_clients = 2
@@ -59,7 +65,6 @@ def db_data(database_connection):
         for i in range(n_clients):
             client = ClientSQL(
                 client_name=f"testclient_{i}",
-                created_utc=datetime.now(timezone.utc),
             )
             session.add(client)
             clients.append(client)
@@ -75,7 +80,6 @@ def db_data(database_connection):
                 latitude=51,
                 longitude=3,
                 capacity_kw=4,
-                created_utc=datetime.now(timezone.utc),
                 ml_id=i,
             )
             session.add(site)
@@ -84,10 +88,7 @@ def db_data(database_connection):
         session.commit()
 
         # Generation
-        # Start time will be up to 2022-01-01 11:50, so test should run from then.
-        start_times = [
-            datetime(2022, 1, 1, 11, 50) - timedelta(minutes=x) for x in range(n_generations)
-        ]
+        start_times = [now - timedelta(minutes=x + 1) for x in range(n_generations)]
 
         for site in sites:
             for i in range(n_generations):

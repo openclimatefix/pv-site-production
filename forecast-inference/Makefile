@@ -14,7 +14,8 @@ lint: deps
 
 format: deps
 	poetry run isort $(SRC)
-	poetry run black $(SRC)
+	# Also run `black` on the notebooks
+	poetry run black $(SRC) notebooks
 
 test: deps
 	poetry run pytest --cov=forecast_inference tests --cov-report xml

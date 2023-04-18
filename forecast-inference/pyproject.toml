@@ -17,13 +17,13 @@ pvsite-datamodel = "^0.1.30"
 
 [tool.poetry.group.dev.dependencies]
 pytest-cov = "^4.0.0"
-black = "^22.12.0"
+black = {version = "^22.12.0", extras = ["jupyter"]}
 isort = "^5.11.4"
 flake8 = "^6.0.0"
 ipython = "^8.8.0"
 pydocstyle = "^6.3.0"
 testcontainers = "^3.7.1"
-pandas-stubs = "^1.5.2.230105"
+pandas-stubs = "^2.0.0.230412"
 types-pyyaml = "^6.0.12.3"
 mypy = "^1.2.0"
 freezegun = "^1.2.2"
