@@ -64,7 +64,7 @@ def _run_model_and_save_for_one_pv(
 
     if write_to_db:
         with profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'):
-            with database_connection.get_session() as session:  # type: ignore
+            with database_connection.get_session() as session:
                 forecast = ForecastSQL(
                     site_uuid=site_uuid, forecast_version="0.0.0", timestamp_utc=timestamp
                 )

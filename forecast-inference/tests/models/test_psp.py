@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import sqlalchemy as sa
 import yaml
 from psp.typings import X
 from pvsite_datamodel.connection import DatabaseConnection
@@ -20,8 +21,8 @@ def test_get_model():
 
     model = get_model(config, pv_data_source)
 
-    with database_connection.get_session() as session:  # type: ignore
-        site = session.query(SiteSQL).first()
+    with database_connection.get_session() as session:
+        site: SiteSQL = session.scalars(sa.select(SiteSQL).limit(1)).one()
 
     y = model.predict(X(pv_id=str(site.site_uuid), ts=datetime(2022, 1, 1, 11, 50)))
     # The fixture model was trained with 48 * 4 horizons.

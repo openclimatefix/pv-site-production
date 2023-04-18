@@ -50,7 +50,7 @@ class DbPvDataSource(PvDataSource):
 
         # The info in the metadata file uses the client's ids, we'll need to map those to
         # site_uuids.
-        with database_connection.get_session() as session:  # type: ignore
+        with database_connection.get_session() as session:
             site_id_to_uuid = _get_site_client_id_to_uuid_mapping(session)
 
         # Fill in the metadata from the file.
@@ -97,7 +97,7 @@ class DbPvDataSource(PvDataSource):
         site_uuids = pv_ids
 
         _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
-        with self._database_connection.get_session() as session:  # type: ignore
+        with self._database_connection.get_session() as session:
             query = session.query(GenerationSQL).filter(
                 GenerationSQL.site_uuid.in_([UUID(x) for x in site_uuids])
             )
@@ -170,7 +170,7 @@ class DbPvDataSource(PvDataSource):
 
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""
-        with self._database_connection.get_session() as session:  # type: ignore
+        with self._database_connection.get_session() as session:
             query = session.query(SiteSQL.site_uuid)
             site_uuids = [str(row.site_uuid) for row in query]
         _log.debug("%i site_uuids from DB", len(site_uuids))
