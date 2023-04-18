@@ -28,8 +28,6 @@ types-pyyaml = "^6.0.12.3"
 sqlalchemy-stubs = "^0.4"
 mypy = "^0.991"
 freezegun = "^1.2.2"
-jupyter = "^1.0.0"
-altair = "^4.2.2"
 
 [build-system]
 requires = ["poetry-core"]

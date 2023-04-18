@@ -50,3 +50,24 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+
+  test_and_lint_pv_site:
+    name: Run tests and lint - pv-site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Install and configure poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.3.2
+
+      - name: Run tests
+        run: cd pv-site && make test
+
+      - name: Run lint
+        run: cd pv-site && make lint
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3

@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "pv-site"
+version = "0.1.0"
+description = ""
+authors = ["OCF"]
+readme = "README.md"
+packages = [{include = "pv_site"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pvsite-datamodel = "^0.1.32"
+pandas = "^1.5.3"
+
+
+[tool.poetry.group.dev.dependencies]
+black = {extras = ["jupyter"], version = "^23.3.0"}
+ruff = "^0.0.261"
+jupyter = "^1.0.0"
+altair = "^4.2.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100

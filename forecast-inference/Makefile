@@ -19,7 +19,4 @@ format: deps
 test: deps
 	poetry run pytest --cov=forecast_inference tests --cov-report xml
 
-notebook:
-	CWD=`pwd` poetry run jupyter notebook --ip 0.0.0.0 --notebook-dir notebooks
-
-.PHONY: lint format test deps notebook
+.PHONY: lint format test deps
