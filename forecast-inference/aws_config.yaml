@@ -1,8 +1,8 @@
 run_model_func: forecast_inference.models.psp.get_model
-model_path: s3://pvsite-ml-models-${OCF_ENVIRONMENT}/models/model-0.2.0.pkl
+model_path: s3://pvsite-ml-models-${OCF_ENVIRONMENT}/models/model-0.3.0.pkl
 
 nwp:
-  cls: psp.data.data_sources.nwp.NwpDataSource
+  cls: psp.data_sources.nwp.NwpDataSource
   kwargs:
     path: s3://nowcasting-nwp-${OCF_ENVIRONMENT}/data/latest.zarr
 

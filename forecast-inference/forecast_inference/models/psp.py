@@ -4,9 +4,8 @@ Models from the `pv-site-prediction` repo.
 import logging
 from typing import Any
 
-from psp.data.data_sources.pv import PvDataSource
+from psp.data_sources.pv import PvDataSource
 from psp.models.base import PvSiteModel
-from psp.models.recent_history import SetupConfig
 from psp.serialization import load_model
 
 from forecast_inference.utils.imports import instantiate
@@ -26,7 +25,10 @@ def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> PvSiteMod
 
     # TODO Make the setup step uniform across all `psp` models. In other words it should be defined
     # directly in `PvSiteModel`.
-    with profile("Setup model"):
-        model.setup(SetupConfig(pv_data_source=pv_data_source, nwp_data_source=nwp_data_source))
+    with profile("Set data sources"):
+        model.set_data_sources(
+            pv_data_source=pv_data_source,
+            nwp_data_source=nwp_data_source,
+        )
 
     return model

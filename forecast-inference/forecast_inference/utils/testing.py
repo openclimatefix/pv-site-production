@@ -3,7 +3,7 @@
 from click.testing import CliRunner
 
 
-def run_click_script(func, args: list[str], catch_exceptions: bool = True):
+def run_click_script(func, args: list[str], catch_exceptions: bool = False):
     """Util to test click scripts while showing the stdout."""
     runner = CliRunner()
 

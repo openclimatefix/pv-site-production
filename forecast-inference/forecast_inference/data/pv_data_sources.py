@@ -4,25 +4,33 @@ PV Data Source
 
 import copy
 import logging
-import pathlib
-from collections import defaultdict
-from datetime import timedelta
-from typing import Any
 from uuid import UUID
 
+import numpy as np
 import pandas as pd
 import xarray as xr
-from psp.data.data_sources.pv import PvDataSource, min_timestamp
+from psp.data_sources.pv import PvDataSource, min_timestamp
 from psp.typings import PvId, Timestamp
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import GenerationSQL, SiteSQL
 from sqlalchemy.orm import Session, joinedload
 
-# Meta keys that are still taken from our inferred metadata file.
-META_FILE_KEYS = ["tilt", "orientation", "factor"]
-META_DB_KEYS = ["longitude", "latitude"]
+META_KEYS = [
+    "longitude",
+    "latitude",
+    "tilt",
+    "orientation",
+    "capacity_kw",
+]
 
 _log = logging.getLogger(__name__)
+
+
+def _to_float(x: float | None) -> float:
+    """Return `np.nan` when `None."""
+    if x is None:
+        return np.nan
+    return x
 
 
 def _get_site_client_id_to_uuid_mapping(
@@ -43,37 +51,9 @@ class DbPvDataSource(PvDataSource):
     def __init__(
         self,
         database_connection: DatabaseConnection,
-        metadata_path: pathlib.Path | str,
     ):
         """Constructor"""
         self._database_connection = database_connection
-
-        # The info in the metadata file uses the client's ids, we'll need to map those to
-        # site_uuids.
-        with database_connection.get_session() as session:
-            site_id_to_uuid = _get_site_client_id_to_uuid_mapping(session)
-
-        # Fill in the metadata from the file.
-        self._meta: dict[PvId, dict[str, float]] = {}
-
-        # Make sure we load the `system_id`s as `str` (if we cast it after, we get '1234.0' instead
-        # of '1234'). Everything else can be loaded as `float`.
-        # Also note that we are assuming that we are loading Sheffield data and we use their
-        # `system_id` in here. During training everything is using the different `ss_id`.
-        meta_dtype: dict[str, Any] = defaultdict(lambda: float)
-        meta_dtype["system_id"] = str
-
-        for _, row in pd.read_csv(metadata_path, dtype=meta_dtype).iterrows():
-            client_site_id = str(row["system_id"])
-            site_uuid = site_id_to_uuid.get(client_site_id)
-
-            if site_uuid is None:
-                _log.info('Unknown client_site_id "%s"', client_site_id)
-                continue
-
-            self._meta[site_uuid] = {key: float(row[key]) for key in META_FILE_KEYS}
-
-        # We'll ignore anything after that date. This is set in the `without_future` method.
         self._max_ts: Timestamp | None = None
 
     def get(
@@ -143,23 +123,18 @@ class DbPvDataSource(PvDataSource):
 
         # Add the metadata associated with the PV systems.
         # Some come from the database, and some from a separate metadata file.
-        meta_from_db = {
-            str(g.site_uuid): {key: getattr(g.site, key) for key in META_DB_KEYS}
-            for g in generations
-        }
-
-        # Merge both the meta data from the DB and from the file.
         meta = {
-            site_uuid: self._meta[site_uuid] | meta_from_db[site_uuid] for site_uuid in site_uuids
+            str(g.site_uuid): {key: _to_float(getattr(g.site, key)) for key in META_KEYS}
+            for g in generations
         }
 
         # Add the metadata as coordinates to the PVs in the xr.Dataset.
         da = da.assign_coords(
-            {
-                key: ("id", [meta[site_uuid][key] for site_uuid in site_uuids])
-                for key in META_FILE_KEYS + META_DB_KEYS
-            }
+            {key: ("id", [meta[site_uuid][key] for site_uuid in site_uuids]) for key in META_KEYS}
         )
+
+        # "capacity" is the only coord that doesn't have the name we expect.
+        da = da.rename({"capacity_kw": "capacity"})
 
         # If the input was a scalar, we make sure the output is consistent, by slicing on the
         # (unique) PV.
@@ -174,10 +149,6 @@ class DbPvDataSource(PvDataSource):
             query = session.query(SiteSQL.site_uuid)
             site_uuids = [str(row.site_uuid) for row in query]
         _log.debug("%i site_uuids from DB", len(site_uuids))
-        _log.debug("%i site_uuids from meta", len(self._meta))
-        # Only keep the site_uuids for which we have metadata.
-        site_uuids = [site_uuid for site_uuid in site_uuids if site_uuid in self._meta]
-        _log.debug("%i site_uuids in common", len(site_uuids))
         return site_uuids
 
     def min_ts(self) -> Timestamp:
@@ -188,9 +159,8 @@ class DbPvDataSource(PvDataSource):
         """Return the latest timestamp of the data."""
         raise NotImplementedError
 
-    def without_future(self, ts: Timestamp, *, blackout: int = 0):
+    def as_available_at(self, ts: Timestamp):
         """Return a copy that ignores everything after `ts - blackout`."""
-        now = ts - timedelta(minutes=blackout) - timedelta(seconds=1)
         self_copy = copy.copy(self)
-        self_copy._max_ts = min_timestamp(now, self._max_ts)
+        self_copy._max_ts = min_timestamp(ts, self._max_ts)
         return self_copy

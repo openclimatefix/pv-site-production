@@ -15,7 +15,7 @@ def test_get_model(now):
     # We could use the sqlalchemy objects from the fixtures but we can also do everything from
     # scratch using the config.
     database_connection = DatabaseConnection(config["pv_db_url"])
-    pv_data_source = DbPvDataSource(database_connection, config["pv_metadata_path"])
+    pv_data_source = DbPvDataSource(database_connection)
 
     model = get_model(config, pv_data_source)
 

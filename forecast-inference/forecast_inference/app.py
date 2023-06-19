@@ -191,7 +191,7 @@ def main(
 
     # Wrap into a PV data source for the models.
     _log.info("Creating PV data source")
-    pv_data_source = DbPvDataSource(database_connection, config["pv_metadata_path"])
+    pv_data_source = DbPvDataSource(database_connection)
 
     with profile("Loading model"):
         model: PvSiteModel = get_model(config, pv_data_source)

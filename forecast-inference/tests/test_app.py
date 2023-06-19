@@ -59,7 +59,7 @@ def test_app_can_not_use_both_date_and_round_to_minutes(now):
         "10",
     ]
 
-    result = run_click_script(main, cmd_args)
+    result = run_click_script(main, cmd_args, catch_exceptions=True)
     assert result.exit_code != 0
     assert "can not use both" in str(result.exception)
 
