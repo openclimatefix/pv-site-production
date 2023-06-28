@@ -13,7 +13,7 @@ from psp.data_sources.pv import PvDataSource, min_timestamp
 from psp.typings import PvId, Timestamp
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import GenerationSQL, SiteSQL
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 META_KEYS = [
     "longitude",
@@ -90,24 +90,36 @@ class DbPvDataSource(PvDataSource):
                 # the "generation" power is punctual.
                 query = query.filter(GenerationSQL.start_utc < end_ts)
 
-            # Eagerly join the sites: we need its metadata.
-            query = query.options(joinedload(GenerationSQL.site))
             generations = query.all()
+
+            # Get the site info in a separate query. We don't JOIN on `generation` in case there
+            # is no generation data.
+
+            site_query = session.query(SiteSQL).filter(
+                SiteSQL.site_uuid.in_([UUID(x) for x in site_uuids])
+            )
+            sites = site_query.all()
+
+        if len(sites) != len(site_uuids):
+            raise RuntimeError(f"We found only {len(sites)} of {len(site_uuids)}, aborting!")
 
         _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
 
         # Build a pandas dataframe of id, timestamp and power.
         # This makes it easy to convert to an xarray.
         df = pd.DataFrame.from_records(
-            {
-                "id": str(g.site_uuid),
-                # We remove the timezone information since otherwise the timestamp index gets
-                # converted to an "object" index later. In any case we should have everything in
-                # UTC.
-                "ts": g.start_utc.replace(tzinfo=None),
-                "power": g.generation_power_kw,
-            }
-            for g in generations
+            [
+                {
+                    "id": str(g.site_uuid),
+                    # We remove the timezone information since otherwise the timestamp index gets
+                    # converted to an "object" index later. In any case we should have everything in
+                    # UTC.
+                    "ts": g.start_utc.replace(tzinfo=None),
+                    "power": g.generation_power_kw,
+                }
+                for g in generations
+            ],
+            columns=["id", "ts", "power"],
         )
 
         df = df.set_index(["id", "ts"])
@@ -121,16 +133,24 @@ class DbPvDataSource(PvDataSource):
 
         da = xr.Dataset.from_dataframe(df)
 
+        # Make sure the ids are in the index. They won't be in the case where the is no data.
+        da = da.reindex(id=pv_ids)
+
         # Add the metadata associated with the PV systems.
-        # Some come from the database, and some from a separate metadata file.
         meta = {
-            str(g.site_uuid): {key: _to_float(getattr(g.site, key)) for key in META_KEYS}
-            for g in generations
+            str(site.site_uuid): {key: _to_float(getattr(site, key)) for key in META_KEYS}
+            for site in sites
         }
 
         # Add the metadata as coordinates to the PVs in the xr.Dataset.
         da = da.assign_coords(
-            {key: ("id", [meta[site_uuid][key] for site_uuid in site_uuids]) for key in META_KEYS}
+            {
+                key: (
+                    "id",
+                    [meta[site_uuid][key] for site_uuid in site_uuids],
+                )
+                for key in META_KEYS
+            }
         )
 
         # "capacity" is the only coord that doesn't have the name we expect.

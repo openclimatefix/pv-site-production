@@ -3,8 +3,13 @@ model_path: s3://pvsite-ml-models-${OCF_ENVIRONMENT}/models/model-0.3.0.pkl
 
 nwp:
   cls: psp.data_sources.nwp.NwpDataSource
+  args:
+    - s3://nowcasting-nwp-${OCF_ENVIRONMENT}/data/latest.zarr
   kwargs:
-    path: s3://nowcasting-nwp-${OCF_ENVIRONMENT}/data/latest.zarr
+    time_dim_name: init_time
+    value_name: UKV
+    y_is_ascending: false
+    coord_system: 27700
 
 pv_metadata_path: s3://pvsite-ml-models-${OCF_ENVIRONMENT}/meta_inferred.csv
 
