@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import pytest
 from freezegun import freeze_time
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import Base, ClientSQL, GenerationSQL, SiteSQL, StatusSQL
+from pvsite_datamodel.sqlmodels import Base, GenerationSQL, SiteSQL, StatusSQL
 from testcontainers.postgres import PostgresContainer
 
 
@@ -56,26 +56,13 @@ def db_data(database_connection, now):
 
     with database_connection.get_session() as session:
 
-        n_clients = 2
         n_sites = 3
         n_generations = 100
-
-        # Clients
-        clients = []
-        for i in range(n_clients):
-            client = ClientSQL(
-                client_name=f"testclient_{i}",
-            )
-            session.add(client)
-            clients.append(client)
-
-        session.commit()
 
         # Sites
         sites = []
         for i in range(n_sites):
             site = SiteSQL(
-                client_uuid=clients[i % n_clients].client_uuid,
                 client_site_id=i + 1,
                 latitude=51,
                 longitude=3,
