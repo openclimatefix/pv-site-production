@@ -6,7 +6,8 @@ on:
 
 jobs:
   bump-version:
-    uses: openclimatefix/.github/.github/workflows/bump-version.yml@v1.2.0
+    uses: openclimatefix/.github/.github/workflows/bump-version.yml@v1.7.2
+    PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
   release-forecast-inference-docker:
     needs: bump-version
