@@ -7,7 +7,7 @@
 
 At the core of each service is a self-contained python package. See the individual directories:
 
-[`./forecast-inference`][infe]: Service that runs the forecasting model in inference
+[`./forecast-inference`][infe]: Service that runs the site forecasting model in inference
 
 [`./database-cleanup`][arc]: Service that archives the forecasts to keep the database small
 
