@@ -3,6 +3,7 @@ Apply the model to the PVs in the database and note the results.
 """
 
 import datetime as dt
+import numpy as np
 import logging
 import os
 import pathlib
@@ -56,7 +57,7 @@ def _run_model_and_save_for_one_pv(
         dict(
             start_utc=timestamp + dt.timedelta(minutes=start),
             end_utc=timestamp + dt.timedelta(minutes=end),
-            forecast_power_kw=value,
+            forecast_power_kw=np.round(value,2),
             horizon_minutes=start,
         )
         for (start, end), value in zip(model.config.horizons, pred.powers)
