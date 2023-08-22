@@ -3,7 +3,6 @@ Apply the model to the PVs in the database and note the results.
 """
 
 import datetime as dt
-import numpy as np
 import logging
 import os
 import pathlib
@@ -11,15 +10,15 @@ from uuid import UUID
 
 import click
 import dotenv
-from psp.models.base import PvSiteModel
-from psp.typings import PvId, Timestamp, X
-from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
-
+import numpy as np
 from forecast_inference.data.pv_data_sources import DbPvDataSource
 from forecast_inference.utils.config import load_config
 from forecast_inference.utils.imports import import_from_module
 from forecast_inference.utils.profiling import profile
+from psp.models.base import PvSiteModel
+from psp.typings import PvId, Timestamp, X
+from pvsite_datamodel.connection import DatabaseConnection
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
 _log = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ def _run_model_and_save_for_one_pv(
         dict(
             start_utc=timestamp + dt.timedelta(minutes=start),
             end_utc=timestamp + dt.timedelta(minutes=end),
-            forecast_power_kw=np.round(value,2),
+            forecast_power_kw=np.round(value, 2),
             horizon_minutes=start,
         )
         for (start, end), value in zip(model.config.horizons, pred.powers)
