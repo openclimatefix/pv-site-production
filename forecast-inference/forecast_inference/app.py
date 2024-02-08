@@ -56,7 +56,7 @@ def _run_model_and_save_for_one_pv(
         dict(
             start_utc=timestamp + dt.timedelta(minutes=start),
             end_utc=timestamp + dt.timedelta(minutes=end),
-            forecast_power_kw=np.round(value, 2),
+            forecast_power_kw=np.round(value, 3),
             horizon_minutes=start,
         )
         for (start, end), value in zip(model.config.horizons, pred.powers)
