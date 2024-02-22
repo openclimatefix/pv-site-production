@@ -4,7 +4,7 @@ model_path: s3://uk-site-forecaster-models-${OCF_ENVIRONMENT}/models/model-0.3.0
 nwp:
   cls: psp.data_sources.nwp.NwpDataSource
   args:
-    - s3://nowcasting-nwp-${OCF_ENVIRONMENT}/data/latest.zarr
+    - ${NWP_ZARR_PATH}
   kwargs:
     time_dim_name: init_time
     value_name: UKV
