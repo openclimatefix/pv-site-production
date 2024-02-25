@@ -223,6 +223,10 @@ def main(
     )
     _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f} %)")
 
+    # Raise an error if all forecasts fail
+    if num_successes == 0:
+        raise RuntimeError("All forecasts failed")
+
 
 if __name__ == "__main__":
     main()
