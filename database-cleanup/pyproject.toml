@@ -6,8 +6,8 @@ authors = ["Open Climate Fix"]
 packages = [{include = "database_cleanup"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-pvsite-datamodel = "^0.1.32"
+python = ["^3.10", ">=3.11,<4.0"]
+pvsite-datamodel = "1.0.17"
 click = "^8.1.3"
 
 
