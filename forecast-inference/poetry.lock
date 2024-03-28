@@ -607,10 +607,7 @@ files = [
 ]
 
 [package.dependencies]
-numpy = [
-    {version = ">1.13.3", markers = "python_version < \"3.12.0.rc1\""},
-    {version = ">=1.26.0b1", markers = "python_version >= \"3.12.0.rc1\""},
-]
+numpy = {version = ">1.13.3", markers = "python_version < \"3.12.0.rc1\""}
 
 [[package]]
 name = "charset-normalizer"
@@ -2992,7 +2989,7 @@ name = "psp"
 version = "0.1.0"
 description = "Photovoltaic per site modeling"
 optional = false
-python-versions = ">=3.8,<4.0"
+python-versions = ">=3.11,<3.12"
 files = []
 develop = false
 
@@ -4791,5 +4788,5 @@ jupyter = ["ipytree (>=0.2.2)", "ipywidgets (>=8.0.0)", "notebook"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.11"
-content-hash = "1cd3c71d53bda6b9b3bcdb0f4ba6a9485411ba2aa0535692557c30a29ccfd49e"
+python-versions = ">=3.11,<3.12"
+content-hash = "0c3b656cf7bb5e711cda9879a02fe7e138c98c73b9ee4abd39392aec52d238e5"

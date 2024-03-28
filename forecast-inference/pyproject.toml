@@ -6,7 +6,7 @@ authors = ["Peter Dudfield"]
 packages = [{include = "forecast_inference"}]
 
 [tool.poetry.dependencies]
-python = ["^3.10", "^3.11"]
+python = ">=3.11,<3.12"
 pandas = "^1.5.2"
 s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"
