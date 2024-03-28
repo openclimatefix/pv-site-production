@@ -114,7 +114,7 @@ class DbPvDataSource(PvDataSource):
                     # We remove the timezone information since otherwise the timestamp index gets
                     # converted to an "object" index later. In any case we should have everything in
                     # UTC.
-                    "ts": g.start_utc.replace(tzinfo=None),
+                    "ts": g.start_utc.replace(tzinfo=None) if g.start_utc is not None else None,
                     "power": g.generation_power_kw,
                 }
                 for g in generations

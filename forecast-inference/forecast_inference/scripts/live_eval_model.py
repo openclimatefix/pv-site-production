@@ -21,7 +21,7 @@ def _resample_df(df: pd.DataFrame, resample_minutes: int) -> pd.DataFrame:
             pd.Grouper(
                 freq=f"{resample_minutes}min",
                 level="start_utc",
-                convention="start",  # type: ignore
+                convention="start",
                 closed="left",
             ),
         ]

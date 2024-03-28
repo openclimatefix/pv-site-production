@@ -6,13 +6,13 @@ authors = ["Peter Dudfield"]
 packages = [{include = "forecast_inference"}]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
+python = ">=3.11,<3.12"
 pandas = "^1.5.2"
 s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"
-sqlalchemy = "^1.4.46"
+sqlalchemy = "^2.0"
 psp = {path = "../pv-site-prediction"}
-pvsite-datamodel = "^0.1.30"
+pvsite-datamodel = "^1.0.17"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -29,7 +29,7 @@ mypy = "^1.2.0"
 freezegun = "^1.2.2"
 jupyter = "^1.0.0"
 altair = "^4.2.2"
-sqlalchemy2-stubs = "^0.0.2a34"
+
 
 [build-system]
 requires = ["poetry-core"]

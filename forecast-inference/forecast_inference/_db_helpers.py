@@ -10,8 +10,10 @@ Row = Any
 
 
 def get_site_uuids(session: Session) -> list[str]:
-    """Get all the sites."""
-    return session.scalars(sa.select(models.SiteSQL.site_uuid)).all()
+    """Get all the site UUIDs."""
+    query = sa.select(models.SiteSQL.site_uuid)
+    result = session.execute(query).scalars().all()
+    return [str(uuid) for uuid in result if uuid is not None]
 
 
 def get_generation(
@@ -33,7 +35,7 @@ def get_generation(
         .where(models.GenerationSQL.start_utc >= start_utc)
         .where(models.GenerationSQL.start_utc < end_utc)
     )
-    return session.execute(stmt).all()
+    return list(session.execute(stmt).all())
 
 
 def get_forecasts(
@@ -60,7 +62,7 @@ def get_forecasts(
         .where(models.ForecastValueSQL.start_utc < end_utc)
     )
 
-    return session.execute(stmt).all()
+    return list(session.execute(stmt).all())
 
 
 def rows_to_df(rows: list[Row]) -> pd.DataFrame:
