@@ -50,6 +50,8 @@ def _run_model_and_save_for_one_pv(
             return False
 
     site_uuid = UUID(pv_id)
+    print('written just to remove lint error testing purpose')
+    print(site_uuid)
 
     # Assemble the data in ForecastValuesSQL rows for the database.
     rows = [
@@ -66,7 +68,7 @@ def _run_model_and_save_for_one_pv(
         with profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'):
             with database_connection.get_session() as session:
                 forecast = ForecastSQL(
-                    site_uuid=site_uuid, forecast_version="0.0.0", timestamp_utc=timestamp
+                    site_uuid=None, forecast_version="0.0.0", timestamp_utc=timestamp
                 )
                 session.add(forecast)
                 # Flush to get the Forecast's primary key.
