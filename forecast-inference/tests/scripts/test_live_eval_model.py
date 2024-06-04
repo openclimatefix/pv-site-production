@@ -34,7 +34,7 @@ def forecasts(database_connection, now):
                 for j in range(num_forecast_values):
                     fv = ForecastValueSQL(
                         forecast_uuid=forecast.forecast_uuid,
-                        forecast_power_kw=123.0, # type: ignore
+                        forecast_power_kw=123.0,  # type: ignore
                         start_utc=timestamp_utc + dt.timedelta(minutes=j),
                         end_utc=timestamp_utc + dt.timedelta(minutes=j + 1),
                         horizon_minutes=0,
