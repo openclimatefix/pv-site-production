@@ -21,14 +21,14 @@ def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> PvSiteMod
         model = load_model(config["model_path"])
 
     with profile(f'Getting NWP data: {config["nwp"]}'):
-        nwp_data_source = instantiate(**config["nwp"])
+        nwp_data_sources = instantiate(**config["nwp"])
 
     # TODO Make the setup step uniform across all `psp` models. In other words it should be defined
     # directly in `PvSiteModel`.
     with profile("Set data sources"):
         model.set_data_sources(
             pv_data_source=pv_data_source,
-            nwp_data_source=nwp_data_source,
+            nwp_data_sources=nwp_data_sources,
         )
 
     return model

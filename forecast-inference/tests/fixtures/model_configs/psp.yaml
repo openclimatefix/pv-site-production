@@ -9,6 +9,19 @@ nwp:
     value_name: UKV
     y_is_ascending: false
     coord_system: 27700
+    variables: [
+        "si10",
+        "vis",
+        # "r2",
+        "t",
+        "prate",
+        # "sd",
+        "dlwrf",
+        "dswrf",
+        "hcc",
+        "mcc",
+        "lcc",
+    ]
 
 model_path: tests/fixtures/psp_model_fixture.pkl
 
