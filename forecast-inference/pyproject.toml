@@ -29,7 +29,6 @@ mypy = "^1.2.0"
 freezegun = "^1.2.2"
 jupyter = "^1.0.0"
 altair = "^4.2.2"
-sqlalchemy2-stubs = "^0.0.2a34"
 
 [build-system]
 requires = ["poetry-core"]
