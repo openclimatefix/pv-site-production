@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install and configure poetry
-        run: cd forecast-inference && poetry install
+        run: cd forecast-inference && pip install poetry && poetry install
 
       - name: Run tests
         run: cd forecast-inference && make test
