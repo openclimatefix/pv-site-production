@@ -25,6 +25,9 @@ jobs:
           python-version: '3.11'
           cache: poetry
 
+      - name: Install and configure poetry
+        run: cd forecast-inference && poetry install
+
       - name: Run tests
         run: cd forecast-inference && make test
 
