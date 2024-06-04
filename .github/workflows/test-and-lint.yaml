@@ -15,13 +15,18 @@ jobs:
 
       - name: Check out the repo
         uses: actions/checkout@v2
+
+      - name: Install poetry
+        run: pipx install poetry==1.3.2
+
+      - name: Install python
+        uses: actions/setup-python@v4
         with:
-          submodules: true
+          python-version: '3.11'
+          cache: poetry
 
       - name: Install and configure poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.3.2
+        run: cd forecast-inference && poetry install
 
       - name: Run tests
         run: cd forecast-inference && make test

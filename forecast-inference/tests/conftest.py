@@ -64,9 +64,9 @@ def db_data(database_connection, now):
         for i in range(n_sites):
             site = SiteSQL(
                 client_site_id=i + 1,
-                latitude=51,
-                longitude=3,
-                capacity_kw=4,
+                latitude=51.0,  # type: ignore
+                longitude=3,  # type: ignore
+                capacity_kw=4,  # type: ignore
                 ml_id=i,
             )
             session.add(site)
@@ -81,7 +81,7 @@ def db_data(database_connection, now):
             for i in range(n_generations):
                 generation = GenerationSQL(
                     site_uuid=site.site_uuid,
-                    generation_power_kw=i,
+                    generation_power_kw=i,  # type: ignore
                     start_utc=start_times[i],
                     end_utc=start_times[i] + timedelta(minutes=5),
                 )

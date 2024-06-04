@@ -11,14 +11,15 @@ from uuid import UUID
 import click
 import dotenv
 import numpy as np
-from forecast_inference.data.pv_data_sources import DbPvDataSource
-from forecast_inference.utils.config import load_config
-from forecast_inference.utils.imports import import_from_module
-from forecast_inference.utils.profiling import profile
 from psp.models.base import PvSiteModel
 from psp.typings import PvId, Timestamp, X
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
+
+from forecast_inference.data.pv_data_sources import DbPvDataSource
+from forecast_inference.utils.config import load_config
+from forecast_inference.utils.imports import import_from_module
+from forecast_inference.utils.profiling import profile
 
 _log = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ def _run_model_and_save_for_one_pv(
         with profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'):
             with database_connection.get_session() as session:
                 forecast = ForecastSQL(
-                    site_uuid=site_uuid, forecast_version="0.0.0", timestamp_utc=timestamp
+                    site_uuid=site_uuid,  # type: ignore
+                    forecast_version="0.0.0",
+                    timestamp_utc=timestamp,
                 )
                 session.add(forecast)
                 # Flush to get the Forecast's primary key.

@@ -1,5 +1,5 @@
 run_model_func: forecast_inference.models.psp.get_model
-model_path: s3://uk-site-forecaster-models-${OCF_ENVIRONMENT}/models/model-0.3.0.pkl
+model_path: s3://uk-site-forecaster-models-${OCF_ENVIRONMENT}/models/model-0.4.0.pkl
 
 nwp:
   cls: psp.data_sources.nwp.NwpDataSource

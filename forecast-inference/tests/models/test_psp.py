@@ -1,3 +1,5 @@
+import os
+
 import sqlalchemy as sa
 import yaml
 from psp.typings import X
@@ -8,13 +10,13 @@ from forecast_inference.data.pv_data_sources import DbPvDataSource
 from forecast_inference.models.psp import get_model
 
 
-def test_get_model(now):
+def test_get_model(now, database_connection):
     with open("tests/fixtures/model_configs/psp.yaml") as f:
         config = yaml.safe_load(f)
 
     # We could use the sqlalchemy objects from the fixtures but we can also do everything from
     # scratch using the config.
-    database_connection = DatabaseConnection(config["pv_db_url"])
+    database_connection = DatabaseConnection(os.environ["OCF_PV_DB_URL"])
     pv_data_source = DbPvDataSource(database_connection)
 
     model = get_model(config, pv_data_source)
