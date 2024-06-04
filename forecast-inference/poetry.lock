@@ -3180,13 +3180,13 @@ tests = ["pytest"]
 
 [[package]]
 name = "pv-site-prediction"
-version = "0.1.18"
+version = "0.1.19"
 description = "Photovoltaic per site modeling"
 optional = false
-python-versions = ">=3.10,<3.12"
+python-versions = "<3.12,>=3.10"
 files = [
-    {file = "pv_site_prediction-0.1.18-py3-none-any.whl", hash = "sha256:effb10bccffd8bb1ffb15e83fb6c0452ef6fad7d3f4fe795b323d61bdadd2889"},
-    {file = "pv_site_prediction-0.1.18.tar.gz", hash = "sha256:c41c161791273dedbc18454400c63c03288a0b3997e0f83900ab5a9e4d5f3be7"},
+    {file = "pv_site_prediction-0.1.19-py3-none-any.whl", hash = "sha256:ded964376196e0294c93991e84dcbdaf4b10f63764ee994cdd4659a1ffe2377c"},
+    {file = "pv_site_prediction-0.1.19.tar.gz", hash = "sha256:7ad0e37c92e4d7057f752ef1ee86e28ebfe3137c33ff7bfe889d864f6b2b3fc2"},
 ]
 
 [package.dependencies]
@@ -5006,4 +5006,4 @@ jupyter = ["ipytree (>=0.2.2)", "ipywidgets (>=8.0.0)", "notebook"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "ed2a50755d499148284f6dbc59c52a5a65b56b9265dd287d05f14dba33455743"
+content-hash = "dbae88d2377a40a3473d85011a62e94aa0d57003c690622f60aabf5660410eb0"
