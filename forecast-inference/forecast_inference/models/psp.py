@@ -28,7 +28,7 @@ def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> PvSiteMod
     with profile("Set data sources"):
         model.set_data_sources(
             pv_data_source=pv_data_source,
-            nwp_data_source=nwp_data_source,
+            nwp_data_sources={'ukv': nwp_data_source},
         )
 
     return model
