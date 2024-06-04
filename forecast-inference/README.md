@@ -20,6 +20,11 @@ poetry install
 poetry run python forecast_inference/app.py
 ```
 
+Need to set
+- OCF_ENVIRONMENT
+- OCF_PV_DB_URL
+- NWP_ZARR_PATH
+
 ## Development
 
 Format the code base *in place*

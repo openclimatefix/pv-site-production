@@ -10,6 +10,16 @@ nwp:
     value_name: UKV
     y_is_ascending: false
     coord_system: 27700
+    variables:
+      - dswrf
+      - dlwrf
+      - hcc
+      - mcc
+      - lcc
+      - t
+      - vis
+      - prate
+      - si10
 
 pv_metadata_path: s3://pvsite-ml-models-${OCF_ENVIRONMENT}/meta_inferred.csv
 
