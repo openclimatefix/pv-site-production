@@ -10,6 +10,7 @@ import logging
 import os
 import time
 import uuid
+import sentry_sdk
 
 import click
 import sqlalchemy as sa
@@ -17,6 +18,16 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session, sessionmaker
 
 _log = logging.getLogger(__name__)
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    environment=os.getenv("ENVIRONMENT", "local"),
+    traces_sample_rate=1
+)
+
+sentry_sdk.set_tag("app_name", "pv-site-production")
+sentry_sdk.set_tag("version", pvsite_datamodel.__version__)
+
 
 
 @contextlib.contextmanager
