@@ -2,7 +2,7 @@ import os
 
 import pytest
 import sqlalchemy as sa
-from pvsite_datamodel.sqlmodels import Base, ClientSQL, SiteSQL
+from pvsite_datamodel.sqlmodels import Base, SiteSQL
 from sqlalchemy.orm import Session
 from testcontainers.postgres import PostgresContainer
 
@@ -29,11 +29,9 @@ def fill_db(engine):
     num_sites = 3
     with Session(engine) as session:
         for i in range(num_clients):
-            client = ClientSQL(client_name=f"client-{i}")
-            session.add(client)
             session.commit()
             for j in range(num_sites):
-                session.add(SiteSQL(client_uuid=client.client_uuid, ml_id=j + num_sites * i))
+                session.add(SiteSQL(ml_id=j + num_sites * i))
                 session.commit()
 
 
