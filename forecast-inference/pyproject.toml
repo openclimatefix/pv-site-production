@@ -13,7 +13,7 @@ python-dotenv = "^0.21.1"
 sqlalchemy = ">=2.0"
 pv-site-prediction = ">=0.1.19"
 pvsite-datamodel = "^1.0.28"
-
+sentry-sdk = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest-cov = "^4.0.0"

@@ -7,6 +7,7 @@ import logging
 import os
 import pathlib
 from uuid import UUID
+import sentry_sdk
 
 import click
 import dotenv
@@ -22,6 +23,15 @@ from forecast_inference.utils.imports import import_from_module
 from forecast_inference.utils.profiling import profile
 
 _log = logging.getLogger(__name__)
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    environment=os.getenv("ENVIRONMENT", "local"),
+    traces_sample_rate=1
+)
+
+sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")
+sentry_sdk.set_tag("version", pv_site_api.__version__)
 
 
 def _run_model_and_save_for_one_pv(

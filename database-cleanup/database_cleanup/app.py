@@ -25,8 +25,8 @@ sentry_sdk.init(
     traces_sample_rate=1
 )
 
-sentry_sdk.set_tag("app_name", "pv-site-production")
-sentry_sdk.set_tag("version", pvsite_datamodel.__version__)
+sentry_sdk.set_tag("app_name", "pv-site-production_database_cleanup")
+sentry_sdk.set_tag("version", pv_site_api.__version__)
 
 
 
