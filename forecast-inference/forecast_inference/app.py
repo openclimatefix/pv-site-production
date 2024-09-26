@@ -8,6 +8,8 @@ import os
 import pathlib
 from uuid import UUID
 import sentry_sdk
+import pkg_resources
+my_version = pkg_resources.get_distribution('forecast_inference').version
 
 import click
 import dotenv
@@ -31,7 +33,7 @@ sentry_sdk.init(
 )
 
 sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")
-sentry_sdk.set_tag("version", pv_site_api.__version__)
+sentry_sdk.set_tag("version", my_version)
 
 
 def _run_model_and_save_for_one_pv(

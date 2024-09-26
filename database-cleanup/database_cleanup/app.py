@@ -11,6 +11,8 @@ import os
 import time
 import uuid
 import sentry_sdk
+import pkg_resources
+my_version = pkg_resources.get_distribution('forecast_inference').version
 
 import click
 import sqlalchemy as sa
@@ -26,7 +28,7 @@ sentry_sdk.init(
 )
 
 sentry_sdk.set_tag("app_name", "pv-site-production_database_cleanup")
-sentry_sdk.set_tag("version", pv_site_api.__version__)
+sentry_sdk.set_tag("version", my_version)
 
 
 
