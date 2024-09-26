@@ -14,7 +14,6 @@ WORKDIR /app
 COPY ./forecast-inference/pyproject.toml /app/pyproject.toml
 COPY ./forecast-inference/poetry.lock /app/poetry.lock
 COPY ./forecast-inference/aws_config.yaml /app/configuration.yaml
-COPY ./pv-site-prediction /pv-site-prediction
 
 # Install dependencies
 RUN poetry install --without dev --no-root
