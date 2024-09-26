@@ -12,7 +12,7 @@ import time
 import uuid
 import sentry_sdk
 import pkg_resources
-my_version = pkg_resources.get_distribution('forecast_inference').version
+my_version = pkg_resources.get_distribution('database-cleanup').version
 
 import click
 import sqlalchemy as sa

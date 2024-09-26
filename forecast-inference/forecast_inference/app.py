@@ -9,7 +9,7 @@ import pathlib
 from uuid import UUID
 import sentry_sdk
 import pkg_resources
-my_version = pkg_resources.get_distribution('database-cleanup').version
+my_version = pkg_resources.get_distribution('forecast_inference').version
 
 import click
 import dotenv
