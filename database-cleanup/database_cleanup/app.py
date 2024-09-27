@@ -10,10 +10,10 @@ import logging
 import os
 import time
 import uuid
-import sentry_sdk
-import pkg_resources
 
 import click
+import pkg_resources
+import sentry_sdk
 import sqlalchemy as sa
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session, sessionmaker

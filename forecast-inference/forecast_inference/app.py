@@ -7,12 +7,12 @@ import logging
 import os
 import pathlib
 from uuid import UUID
-import sentry_sdk
-import pkg_resources
 
 import click
 import dotenv
 import numpy as np
+import pkg_resources
+import sentry_sdk
 from psp.models.base import PvSiteModel
 from psp.typings import PvId, Timestamp, X
 from pvsite_datamodel.connection import DatabaseConnection
