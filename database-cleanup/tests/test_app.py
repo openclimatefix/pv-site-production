@@ -54,7 +54,7 @@ def _run_cli(func, args: list[str]):
 @pytest.fixture
 def site(session):
     # Create a new site (this way we know it won't have any forecasts yet).
-    client = str(uuid.uuid4())
+    client = client_name= str(uuid.uuid4())
     session.add(client)
     session.commit()
 
