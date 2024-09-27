@@ -34,7 +34,7 @@ sentry_sdk.init(
 )
 
 sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")
-sentry_sdk.set_tag("version", my_version)
+sentry_sdk.set_tag("version", version)
 
 
 def _run_model_and_save_for_one_pv(
