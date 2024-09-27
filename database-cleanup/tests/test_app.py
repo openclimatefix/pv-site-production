@@ -58,7 +58,7 @@ def site(session):
     session.add(client)
     session.commit()
 
-    site = SiteSQL( ml_id=hash(uuid.uuid4()) % 2147483647)
+    site = SiteSQL(client.client_uuid, ml_id=hash(uuid.uuid4()) % 2147483647)
     session.add(site)
     session.commit()
     return site
