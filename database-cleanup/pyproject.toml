@@ -9,7 +9,8 @@ packages = [{include = "database_cleanup"}]
 python = "^3.10"
 pvsite-datamodel = "^0.1.32"
 click = "^8.1.3"
-
+sentry-sdk = "^2.1.1"
+setuptools = "^75.1.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
