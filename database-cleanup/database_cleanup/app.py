@@ -12,7 +12,6 @@ import time
 import uuid
 import sentry_sdk
 import pkg_resources
-my_version = pkg_resources.get_distribution('database-cleanup').version
 
 import click
 import sqlalchemy as sa
@@ -20,6 +19,8 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session, sessionmaker
 
 _log = logging.getLogger(__name__)
+
+my_version = pkg_resources.get_distribution('database-cleanup').version
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),

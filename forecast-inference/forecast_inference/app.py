@@ -9,7 +9,6 @@ import pathlib
 from uuid import UUID
 import sentry_sdk
 import pkg_resources
-my_version = pkg_resources.get_distribution('forecast_inference').version
 
 import click
 import dotenv
@@ -25,6 +24,8 @@ from forecast_inference.utils.imports import import_from_module
 from forecast_inference.utils.profiling import profile
 
 _log = logging.getLogger(__name__)
+
+my_version = pkg_resources.get_distribution('forecast_inference').version
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
