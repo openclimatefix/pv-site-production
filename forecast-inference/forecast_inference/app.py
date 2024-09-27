@@ -3,6 +3,7 @@ Apply the model to the PVs in the database and note the results.
 """
 
 import datetime as dt
+import importlib.metadata
 import logging
 import os
 import pathlib
@@ -11,7 +12,6 @@ from uuid import UUID
 import click
 import dotenv
 import numpy as np
-import importlib.metadata
 import sentry_sdk
 from psp.models.base import PvSiteModel
 from psp.typings import PvId, Timestamp, X
@@ -25,12 +25,10 @@ from forecast_inference.utils.profiling import profile
 
 _log = logging.getLogger(__name__)
 
-version = importlib.metadata.version('forecast_inference')
+version = importlib.metadata.version("forecast_inference")
 
 sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN"),
-    environment=os.getenv("ENVIRONMENT", "local"),
-    traces_sample_rate=1
+    dsn=os.getenv("SENTRY_DSN"), environment=os.getenv("ENVIRONMENT", "local"), traces_sample_rate=1
 )
 
 sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")

@@ -20,17 +20,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 _log = logging.getLogger(__name__)
 
-version = importlib.metadata.version('database-cleanup')
+version = importlib.metadata.version("database-cleanup")
 
 sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN"),
-    environment=os.getenv("ENVIRONMENT", "local"),
-    traces_sample_rate=1
+    dsn=os.getenv("SENTRY_DSN"), environment=os.getenv("ENVIRONMENT", "local"), traces_sample_rate=1
 )
 
 sentry_sdk.set_tag("app_name", "pv-site-production_database_cleanup")
 sentry_sdk.set_tag("version", version)
-
 
 
 @contextlib.contextmanager

@@ -54,7 +54,7 @@ def _run_cli(func, args: list[str]):
 @pytest.fixture
 def site(session):
     # Create a new site (this way we know it won't have any forecasts yet).
-    site = SiteSQL( ml_id=hash(uuid.uuid4()) % 2147483647)
+    site = SiteSQL(ml_id=hash(uuid.uuid4()) % 2147483647)
     session.add(site)
     session.commit()
     return site
