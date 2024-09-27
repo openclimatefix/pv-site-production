@@ -11,7 +11,7 @@ from uuid import UUID
 import click
 import dotenv
 import numpy as np
-import pkg_resources
+import importlib.metadata
 import sentry_sdk
 from psp.models.base import PvSiteModel
 from psp.typings import PvId, Timestamp, X
@@ -25,7 +25,7 @@ from forecast_inference.utils.profiling import profile
 
 _log = logging.getLogger(__name__)
 
-my_version = pkg_resources.get_distribution('forecast_inference').version
+version = importlib.metadata.version('forecast_inference')
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
