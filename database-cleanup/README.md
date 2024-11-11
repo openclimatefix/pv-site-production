@@ -2,6 +2,8 @@
 
 This service is responsible to remove old forecasts from the database and archive them.
 
+Old forecast are saved to a directory defined by `SAVE_DIR` environment variable.
+
 ## Running the service
 
 ```bash
