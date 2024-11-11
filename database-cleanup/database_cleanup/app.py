@@ -10,6 +10,7 @@ import logging
 import os
 import time
 import uuid
+import fsspec
 
 import click
 import importlib.metadata
@@ -17,6 +18,7 @@ import sentry_sdk
 import sqlalchemy as sa
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session, sessionmaker
+import pandas as pd
 
 _log = logging.getLogger(__name__)
 
@@ -62,6 +64,34 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
         session.execute(stmt)
 
 
+def save_forecast_and_values(session: Session, forecast_uuids: list[uuid.UUID], directory: str):
+    """
+    Save forecast and forecast values to csv
+
+    :param session: database session
+    :param forecast_uuids: list of forecast uuids
+    :param directory: the directory where they should be saved
+    """
+    _log.info(f"Saving data to {directory}")
+
+    fs = fsspec.open(directory).fs
+    # check folder exists, if it doesnt, add it
+    if not fs.exists(directory):
+        fs.mkdir(directory)
+
+    # loop over both forecast and forecast_values tables
+    for table in ["forecast", "forecast_value"]:
+        model = ForecastSQL if table == "forecast" else ForecastValueSQL
+
+        # get data
+        query = session.query(model).where(model.forecast_uuid.in_(forecast_uuids))
+        forecasts_df = pd.read_sql(query.statement, session.bind)
+
+        # save to csv
+        _log.info(f"saving to {directory}, Saving {len(forecasts_df)} rows to {table}.csv")
+        forecasts_df.to_csv(f"{directory}/{table}.csv", index=False)
+
+
 @click.command()
 @click.option(
     "--date",
@@ -74,6 +104,13 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
     default=100,
     help="Number of forecasts to delete in one batch."
     " (Note that this means orders of magnitude more Forecast *Values*).",
+    show_default=True,
+)
+@click.option(
+    "--save-dir",
+    default="data",
+    envvar="SAVE_DIR",
+    help="The directory where we save the delete forecasts and values.",
     show_default=True,
 )
 @click.option(
@@ -91,20 +128,22 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
 @click.option(
     "--do-delete", is_flag=True, help="Actually delete the rows. By default we only do a dry run."
 )
-def main(date: dt.datetime, batch_size: int, sleep: int, do_delete: bool, log_level: str):
+def main(
+    date: dt.datetime, batch_size: int, save_dir: str, sleep: int, do_delete: bool, log_level: str
+):
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
     )
 
-    if date is None:
-        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
-    else:
-        date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+    date = format_date(date)
 
     db_url = os.environ["DB_URL"]
     engine = sa.create_engine(db_url)
     Session = sessionmaker(engine, future=True)
+
+    save_dir = f"{save_dir}/{date.isoformat()}"
+    _log.info(f"Saving data to {save_dir}")
 
     if do_delete:
         _log.info(f"Deleting forecasts made before {date} (UTC).")
@@ -121,6 +160,8 @@ def main(date: dt.datetime, batch_size: int, sleep: int, do_delete: bool, log_le
                 limit=batch_size,
             )
 
+        save_forecast_and_values(session=session, forecast_uuids=forecast_uuids, directory=save_dir)
+
         if len(forecast_uuids) == 0:
             _log.info(f"Done deleting forecasts made before {date}")
             _log.info(
@@ -131,6 +172,7 @@ def main(date: dt.datetime, batch_size: int, sleep: int, do_delete: bool, log_le
             return
 
         if do_delete:
+
             # Not that it is important to run this in a transaction for atomicity.
             with Session.begin() as session:
                 _delete_forecasts_and_values(session, forecast_uuids)
@@ -144,6 +186,21 @@ def main(date: dt.datetime, batch_size: int, sleep: int, do_delete: bool, log_le
         if sleep:
             _log.debug(f"Sleeping for {sleep} seconds")
             time.sleep(sleep)
+
+
+def format_date(date) -> dt.datetime:
+    """
+    Format the date to a datetime object
+
+    :param date: None, or string in the format "YYYY-MM-DD HH:mm"
+    :return:
+    """
+    if date is None:
+        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
+
+    date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+
+    return date
 
 
 if __name__ == "__main__":

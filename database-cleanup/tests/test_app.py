@@ -1,10 +1,12 @@
 import datetime as dt
+import os.path
 import uuid
+import tempfile
 
 import pytest
 import sqlalchemy as sa
 from click.testing import CliRunner
-from database_cleanup.app import main
+from database_cleanup.app import main, format_date
 from freezegun import freeze_time
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL
 from sqlalchemy.orm import Session
@@ -83,44 +85,58 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
     num_forecasts = 10
     num_values = 9
 
-    timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]
+    # make temp directory
+    with tempfile.TemporaryDirectory() as tmpdirname:
 
-    # Add forecasts for those.
-    _add_foreasts(
-        session,
-        site_uuid=site_uuid,
-        timestamps=timestamps,
-        num_values=num_values,
-        frequency=1,
-    )
+        save_dir = tmpdirname
 
-    # Run the script.
-    args = ["--do-delete"]
+        timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]
 
-    if date_str is not None:
-        args.extend(["--date", date_str])
+        # Add forecasts for those.
+        _add_foreasts(
+            session,
+            site_uuid=site_uuid,
+            timestamps=timestamps,
+            num_values=num_values,
+            frequency=1,
+        )
 
-    if batch_size is not None:
-        args.extend(["--batch-size", str(batch_size)])
+        # Run the script.
+        args = ["--do-delete"]
 
-    _run_cli(main, args)
+        if date_str is not None:
+            args.extend(["--date", date_str])
 
-    # Check that we have the right number of rows left.
-    # Only check for the site_uuid that we considered.
-    num_forecasts_left = session.scalars(
-        sa.select(sa.func.count())
-        .select_from(ForecastSQL)
-        .where(ForecastSQL.site_uuid == site_uuid)
-    ).one()
-    assert num_forecasts_left == expected
+        if batch_size is not None:
+            args.extend(["--batch-size", str(batch_size)])
 
-    num_values_left = session.scalars(
-        sa.select(sa.func.count())
-        .select_from(ForecastValueSQL)
-        .join(ForecastSQL)
-        .where(ForecastSQL.site_uuid == site_uuid)
-    ).one()
-    assert num_values_left == expected * num_values
+        args.extend(["--save-dir", save_dir])
+
+        _run_cli(main, args)
+
+        # Check that we have the right number of rows left.
+        # Only check for the site_uuid that we considered.
+        num_forecasts_left = session.scalars(
+            sa.select(sa.func.count())
+            .select_from(ForecastSQL)
+            .where(ForecastSQL.site_uuid == site_uuid)
+        ).one()
+        assert num_forecasts_left == expected
+
+        num_values_left = session.scalars(
+            sa.select(sa.func.count())
+            .select_from(ForecastValueSQL)
+            .join(ForecastSQL)
+            .where(ForecastSQL.site_uuid == site_uuid)
+        ).one()
+        assert num_values_left == expected * num_values
+
+        # check that forecast.csv and forecast_values.csv are saved
+        date = format_date(date_str).isoformat()
+        assert os.path.exists(f"{tmpdirname}")
+        assert os.path.exists(f"{tmpdirname}/{date}")
+        assert os.path.exists(f"{tmpdirname}/{date}/forecast.csv")
+        assert os.path.exists(f"{tmpdirname}/{date}/forecast_value.csv")
 
 
 @freeze_time("2020-01-11 00:01")
