@@ -54,7 +54,7 @@ jobs:
           cache: poetry
 
       - name: Install and configure poetry
-        uses: cd database-cleanup && poetry install --dev-dependency
+        run: cd database-cleanup && poetry install --dev-dependency
 
       - name: Run tests
         run: cd database-cleanup && make test
