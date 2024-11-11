@@ -18,7 +18,7 @@ def _add_foreasts(
     site_uuid: str,
     timestamps: list[dt.datetime],
     num_values: int,
-    frequency: int
+    frequency: int,
 ):
     for timestamp in timestamps:
         forecast = ForecastSQL(site_uuid=site_uuid, timestamp_utc=timestamp, forecast_version="0")
@@ -87,7 +87,6 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
 
     # make temp directory
     with tempfile.TemporaryDirectory() as tmpdirname:
-
         save_dir = tmpdirname
 
         timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]

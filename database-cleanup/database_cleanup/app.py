@@ -11,6 +11,7 @@ import os
 import time
 import uuid
 import fsspec
+from typing import Optional
 
 import click
 import importlib.metadata
@@ -108,7 +109,7 @@ def save_forecast_and_values(session: Session, forecast_uuids: list[uuid.UUID], 
 )
 @click.option(
     "--save-dir",
-    default="data",
+    default=None,
     envvar="SAVE_DIR",
     help="The directory where we save the delete forecasts and values.",
     show_default=True,
@@ -129,7 +130,12 @@ def save_forecast_and_values(session: Session, forecast_uuids: list[uuid.UUID], 
     "--do-delete", is_flag=True, help="Actually delete the rows. By default we only do a dry run."
 )
 def main(
-    date: dt.datetime, batch_size: int, save_dir: str, sleep: int, do_delete: bool, log_level: str
+    date: dt.datetime,
+    batch_size: int,
+    save_dir: Optional[str],
+    sleep: int,
+    do_delete: bool,
+    log_level: str,
 ):
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
@@ -142,7 +148,8 @@ def main(
     engine = sa.create_engine(db_url)
     Session = sessionmaker(engine, future=True)
 
-    save_dir = f"{save_dir}/{date.isoformat()}"
+    if save_dir is not None:
+        save_dir = f"{save_dir}/{date.isoformat()}"
     _log.info(f"Saving data to {save_dir}")
 
     if do_delete:
@@ -160,7 +167,10 @@ def main(
                 limit=batch_size,
             )
 
-        save_forecast_and_values(session=session, forecast_uuids=forecast_uuids, directory=save_dir)
+        if save_dir is not None:
+            save_forecast_and_values(
+                session=session, forecast_uuids=forecast_uuids, directory=save_dir
+            )
 
         if len(forecast_uuids) == 0:
             _log.info(f"Done deleting forecasts made before {date}")
@@ -172,7 +182,6 @@ def main(
             return
 
         if do_delete:
-
             # Not that it is important to run this in a transaction for atomicity.
             with Session.begin() as session:
                 _delete_forecasts_and_values(session, forecast_uuids)
