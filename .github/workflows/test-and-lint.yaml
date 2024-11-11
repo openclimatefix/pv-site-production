@@ -44,17 +44,10 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
 
-      - name: Install poetry
-        run: pipx install poetry==1.3.2
-
-      - name: Install python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          cache: poetry
-
       - name: Install and configure poetry
-        run: cd database-cleanup && poetry install --with dev
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.3.2
 
       - name: Run tests
         run: cd database-cleanup && make test
