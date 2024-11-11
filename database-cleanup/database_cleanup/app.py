@@ -64,6 +64,8 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
         stmt = sa.delete(ForecastSQL).where(ForecastSQL.forecast_uuid.in_(forecast_uuids))
         session.execute(stmt)
 
+    session.commit()
+
 
 def save_forecast_and_values(session: Session, forecast_uuids: list[uuid.UUID], directory: str):
     """
@@ -86,7 +88,8 @@ def save_forecast_and_values(session: Session, forecast_uuids: list[uuid.UUID], 
 
         # get data
         query = session.query(model).where(model.forecast_uuid.in_(forecast_uuids))
-        forecasts_df = pd.read_sql(query.statement, session.bind)
+        forecasts_sql = query.all()
+        forecasts_df = pd.DataFrame([f.__dict__ for f in forecasts_sql])
 
         # save to csv
         _log.info(f"saving to {directory}, Saving {len(forecasts_df)} rows to {table}.csv")
