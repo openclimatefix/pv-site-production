@@ -222,7 +222,7 @@ def format_date(date) -> dt.datetime:
     :return:
     """
     if date is None:
-        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 01:00")
+        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
 
     date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
 
