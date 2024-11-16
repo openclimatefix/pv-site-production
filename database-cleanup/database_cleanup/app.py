@@ -74,12 +74,16 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
         session.execute(stmt)
 
 
-def save_forecast_and_values(session: Session, forecast_uuids: list[uuid.UUID], directory: str):
+def save_forecast_and_values(
+    session: Session, forecast_uuids: list[uuid.UUID], directory: str, index: int = 0
+):
     """
     Save forecast and forecast values to csv
     :param session: database session
     :param forecast_uuids: list of forecast uuids
     :param directory: the directory where they should be saved
+    :param index: the index of the file, we delete the forecasts in batches,
+        so there will be several files to save
     """
     _log.info(f"Saving data to {directory}")
 
@@ -99,7 +103,7 @@ def save_forecast_and_values(session: Session, forecast_uuids: list[uuid.UUID], 
 
         # save to csv
         _log.info(f"saving to {directory}, Saving {len(forecasts_df)} rows to {table}.csv")
-        forecasts_df.to_csv(f"{directory}/{table}.csv", index=False)
+        forecasts_df.to_csv(f"{directory}/{table}_{index}.csv", index=False)
 
 
 @click.command()
@@ -168,7 +172,9 @@ def main(
 
     num_forecast_deleted = 0
 
+    i = -1
     while True:
+        i += 1
         with Session.begin() as session:
             forecast_uuids = _get_forecasts(
                 session,
@@ -185,9 +191,12 @@ def main(
                 _log.info("Exiting.")
                 return
 
-            if save_dir is not None:
+            if (save_dir is not None) and do_delete:
                 save_forecast_and_values(
-                    session=session, forecast_uuids=forecast_uuids, directory=save_dir
+                    session=session,
+                    forecast_uuids=forecast_uuids,
+                    directory=save_dir,
+                    index=i,
                 )
 
         if do_delete:
@@ -213,7 +222,7 @@ def format_date(date) -> dt.datetime:
     :return:
     """
     if date is None:
-        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
+        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 01:00")
 
     date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
 

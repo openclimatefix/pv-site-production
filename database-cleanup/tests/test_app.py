@@ -136,11 +136,11 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
             date = format_date(date_str).isoformat()
             assert os.path.exists(f"{tmpdirname}")
             assert os.path.exists(f"{tmpdirname}/{date}")
-            assert os.path.exists(f"{tmpdirname}/{date}/forecast.csv")
-            assert os.path.exists(f"{tmpdirname}/{date}/forecast_value.csv")
+            assert os.path.exists(f"{tmpdirname}/{date}/forecast_0.csv")
+            assert os.path.exists(f"{tmpdirname}/{date}/forecast_value_0.csv")
 
-            forecast_df = pd.read_csv(f"{tmpdirname}/{date}/forecast.csv")
-            forecast_value_df = pd.read_csv(f"{tmpdirname}/{date}/forecast_value.csv")
+            forecast_df = pd.read_csv(f"{tmpdirname}/{date}/forecast_0.csv")
+            forecast_value_df = pd.read_csv(f"{tmpdirname}/{date}/forecast_value_0.csv")
             for data in [forecast_df, forecast_value_df]:
                 assert len(data) > 0
 
