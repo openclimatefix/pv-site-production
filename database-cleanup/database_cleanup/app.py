@@ -28,8 +28,8 @@ logging.basicConfig(
 )
 _log = logging.getLogger(__name__)
 # Get rid of the verbose logs
-logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
-logging.getLogger('aiobotocore').setLevel(logging.ERROR)
+logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
+logging.getLogger("aiobotocore").setLevel(logging.ERROR)
 
 
 version = importlib.metadata.version("database-cleanup")

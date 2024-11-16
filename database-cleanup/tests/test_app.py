@@ -2,6 +2,7 @@ import datetime as dt
 import uuid
 import os
 import tempfile
+import pandas as pd
 
 import pytest
 import sqlalchemy as sa
