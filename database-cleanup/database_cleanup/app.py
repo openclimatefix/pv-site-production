@@ -179,8 +179,8 @@ def main(
             if len(forecast_uuids) == 0:
                 _log.info(f"Done deleting forecasts made before {date}")
                 _log.info(
-                    f"A total of {num_forecast_deleted} (and corresponding values) were deleted from"
-                    " the database."
+                    f"A total of {num_forecast_deleted} (and corresponding values) "
+                    f"were deleted from the database."
                 )
                 _log.info("Exiting.")
                 return
