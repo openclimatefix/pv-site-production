@@ -21,7 +21,16 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session, sessionmaker
 import pandas as pd
 
+
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOGLEVEL", "INFO")),
+    format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+)
 _log = logging.getLogger(__name__)
+# Get rid of the verbose logs
+logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
+logging.getLogger('aiobotocore').setLevel(logging.ERROR)
+
 
 version = importlib.metadata.version("database-cleanup")
 
