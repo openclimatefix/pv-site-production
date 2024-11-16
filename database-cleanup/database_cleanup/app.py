@@ -21,7 +21,16 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session, sessionmaker
 import pandas as pd
 
+
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOGLEVEL", "INFO")),
+    format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+)
 _log = logging.getLogger(__name__)
+# Get rid of the verbose logs
+logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
+logging.getLogger("aiobotocore").setLevel(logging.ERROR)
+
 
 version = importlib.metadata.version("database-cleanup")
 
@@ -167,19 +176,19 @@ def main(
                 limit=batch_size,
             )
 
+            if len(forecast_uuids) == 0:
+                _log.info(f"Done deleting forecasts made before {date}")
+                _log.info(
+                    f"A total of {num_forecast_deleted} (and corresponding values) "
+                    f"were deleted from the database."
+                )
+                _log.info("Exiting.")
+                return
+
             if save_dir is not None:
                 save_forecast_and_values(
                     session=session, forecast_uuids=forecast_uuids, directory=save_dir
                 )
-
-        if len(forecast_uuids) == 0:
-            _log.info(f"Done deleting forecasts made before {date}")
-            _log.info(
-                f"A total of {num_forecast_deleted} (and corresponding values) were deleted from"
-                " the database."
-            )
-            _log.info("Exiting.")
-            return
 
         if do_delete:
             # Not that it is important to run this in a transaction for atomicity.
