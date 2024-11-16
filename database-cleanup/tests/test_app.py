@@ -137,6 +137,11 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
         assert os.path.exists(f"{tmpdirname}/{date}/forecast.csv")
         assert os.path.exists(f"{tmpdirname}/{date}/forecast_value.csv")
 
+        forecast_df = pd.read_csv(f"{tmpdirname}/{date}/forecast.csv")
+        forecast_value_df = pd.read_csv(f"{tmpdirname}/{date}/forecast_value.csv")
+        for data in [forecast_df, forecast_value_df]:
+            assert len(data) > 0
+
 
 @freeze_time("2020-01-11 00:01")
 @pytest.mark.parametrize("do_delete", [True, False])
