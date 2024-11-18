@@ -6,6 +6,7 @@ from typing import Optional
 
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteGroupSQL
 from sqlalchemy.orm import Session
+import sqlalchemy as sa
 import pandas as pd
 
 
@@ -16,41 +17,34 @@ logging.basicConfig(
 _log = logging.getLogger(__name__)
 
 
-def get_site_uuids(session: Session, site_group_names: [str]) -> list[uuid.UUID]:
+def get_site_uuids(session: Session) -> list[uuid.UUID]:
     """
     Get the site uuids for the site group names
 
     :param session:
-    :param site_group_names: list of site group names
     :return:
     """
 
-    site_group_names = site_group_names
+    # get all site groups
+    site_groups = session.query(SiteGroupSQL).all()
+
+    # only select site groups with service level 1 or above
+    site_groups = [site_group for site_group in site_groups if site_group.service_level >= 1]
 
     site_uuids_all_sites = []
-    for site_group_name in site_group_names:
-        # get the site group
-        site_group = (
-            session.query(SiteGroupSQL)
-            .filter(SiteGroupSQL.site_group_name == site_group_name)
-            .first()
-        )
+    for site_group in site_groups:
+        # get the site uuids
+        sites = site_group.sites
+        site_uuids = [site.site_uuid for site in sites]
 
-        if site_group is None:
-            _log.error(f"Site group {site_group_name} not found in the database")
-        else:
-            # get the site uuids
-            sites = site_group.sites
-            site_uuids = [site.site_uuid for site in sites]
+        # reduce down to 100 if needed
+        if len(site_uuids) > 100:
+            _log.error(
+                f"Site group {site_group.site_group_name} has more than 100 sites, only saving 100"
+            )
+            site_uuids = site_uuids[:100]
 
-            # reduce down to 100 if needed
-            if len(site_uuids) > 100:
-                _log.error(
-                    f"Site group {site_group_name} has more than 100 sites, " f"only saving 100"
-                )
-                site_uuids = site_uuids[:100]
-
-            site_uuids_all_sites.extend(site_uuids)
+        site_uuids_all_sites.extend(site_uuids)
 
     return site_uuids_all_sites
 
@@ -79,11 +73,9 @@ def save_forecast_and_values(
         fs.mkdir(directory)
 
     if site_uuids is not None:
-        forecast_uuids = (
-            session.query(ForecastSQL.forecast_uuid)
-            .filter(ForecastSQL.site_uuid.in_(site_uuids))
-            .all()
-        )
+        stmt = sa.select(ForecastSQL.forecast_uuid).filter(ForecastSQL.site_uuid.in_(site_uuids))
+
+        forecast_uuids = session.scalars(stmt).all()
 
     # loop over both forecast and forecast_values tables
     for table in ["forecast", "forecast_value"]:

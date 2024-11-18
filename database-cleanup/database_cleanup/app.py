@@ -132,15 +132,10 @@ def main(
         save_dir = f"{save_dir}/{date.isoformat()}"
     _log.info(f"Saving data to {save_dir}")
 
-    # if SITE_GROUP_NAMES is set, lets only save for these sites
-    site_group_names = os.getenv("SITE_GROUP_NAMES", None)
-    if site_group_names is not None:
-        site_uuids_all_sites = get_site_uuids(Session, site_group_names.split(","))
-        _log.info(
-            f"Will be saving data for {len(site_uuids_all_sites)} " f"sites for {site_group_names}"
-        )
-    else:
-        site_uuids_all_sites = None
+    # get sites to save
+    with Session.begin() as session:
+        site_uuids_all_sites = get_site_uuids(session)
+        _log.info(f"Will be saving data for {len(site_uuids_all_sites)}")
 
     if do_delete:
         _log.info(f"Deleting forecasts made before {date} (UTC).")
