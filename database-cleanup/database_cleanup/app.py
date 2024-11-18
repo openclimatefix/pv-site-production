@@ -101,6 +101,14 @@ def save_forecast_and_values(
         forecasts_sql = query.all()
         forecasts_df = pd.DataFrame([f.__dict__ for f in forecasts_sql])
 
+        # drop column _sa_instance_state if it is there
+        if "_sa_instance_state" in forecasts_df.columns:
+            forecasts_df = forecasts_df.drop(columns="_sa_instance_state")
+
+        # drop forecast_value_uuid as we dont need it
+        if table == "forecast_value":
+            forecasts_df = forecasts_df.drop(columns="forecast_value_uuid")
+
         # save to csv
         _log.info(f"saving to {directory}, Saving {len(forecasts_df)} rows to {table}.csv")
         forecasts_df.to_csv(f"{directory}/{table}_{index}.csv", index=False)
