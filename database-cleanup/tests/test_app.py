@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from click.testing import CliRunner
 from database_cleanup.app import main, format_date
 from freezegun import freeze_time
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL, SiteGroupSQL
 from sqlalchemy.orm import Session
 
 
@@ -56,10 +56,20 @@ def _run_cli(func, args: list[str]):
 
 @pytest.fixture
 def site(session):
+    # create SiteGroupSQL
+    now = pd.Timestamp.now().isoformat()
+    site_group = SiteGroupSQL(site_group_name=f"test_group_name_{now}", service_level=1)
+    session.add(site_group)
+    session.commit()
+
     # Create a new site (this way we know it won't have any forecasts yet).
     site = SiteSQL(ml_id=hash(uuid.uuid4()) % 2147483647)
     session.add(site)
     session.commit()
+
+    site_group.sites.append(site)
+    session.commit()
+
     return site
 
 

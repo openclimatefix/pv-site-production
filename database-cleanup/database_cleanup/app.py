@@ -10,7 +10,6 @@ import logging
 import os
 import time
 import uuid
-import fsspec
 from typing import Optional
 
 import click
@@ -19,7 +18,7 @@ import sentry_sdk
 import sqlalchemy as sa
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session, sessionmaker
-import pandas as pd
+from database_cleanup.save import get_site_uuids, save_forecast_and_values
 
 
 logging.basicConfig(
@@ -72,46 +71,6 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
     with _profile(f"Deleting {len(forecast_uuids)} forecasts"):
         stmt = sa.delete(ForecastSQL).where(ForecastSQL.forecast_uuid.in_(forecast_uuids))
         session.execute(stmt)
-
-
-def save_forecast_and_values(
-    session: Session, forecast_uuids: list[uuid.UUID], directory: str, index: int = 0
-):
-    """
-    Save forecast and forecast values to csv
-    :param session: database session
-    :param forecast_uuids: list of forecast uuids
-    :param directory: the directory where they should be saved
-    :param index: the index of the file, we delete the forecasts in batches,
-        so there will be several files to save
-    """
-    _log.info(f"Saving data to {directory}")
-
-    fs = fsspec.open(directory).fs
-    # check folder exists, if it doesnt, add it
-    if not fs.exists(directory):
-        fs.mkdir(directory)
-
-    # loop over both forecast and forecast_values tables
-    for table in ["forecast", "forecast_value"]:
-        model = ForecastSQL if table == "forecast" else ForecastValueSQL
-
-        # get data
-        query = session.query(model).where(model.forecast_uuid.in_(forecast_uuids))
-        forecasts_sql = query.all()
-        forecasts_df = pd.DataFrame([f.__dict__ for f in forecasts_sql])
-
-        # drop column _sa_instance_state if it is there
-        if "_sa_instance_state" in forecasts_df.columns:
-            forecasts_df = forecasts_df.drop(columns="_sa_instance_state")
-
-        # drop forecast_value_uuid as we dont need it
-        if table == "forecast_value":
-            forecasts_df = forecasts_df.drop(columns="forecast_value_uuid")
-
-        # save to csv
-        _log.info(f"saving to {directory}, Saving {len(forecasts_df)} rows to {table}.csv")
-        forecasts_df.to_csv(f"{directory}/{table}_{index}.csv", index=False)
 
 
 @click.command()
@@ -173,6 +132,11 @@ def main(
         save_dir = f"{save_dir}/{date.isoformat()}"
     _log.info(f"Saving data to {save_dir}")
 
+    # get sites to save
+    with Session.begin() as session:
+        site_uuids_all_sites = get_site_uuids(session)
+        _log.info(f"Will be saving data for {len(site_uuids_all_sites)}")
+
     if do_delete:
         _log.info(f"Deleting forecasts made before {date} (UTC).")
     else:
@@ -205,6 +169,7 @@ def main(
                     forecast_uuids=forecast_uuids,
                     directory=save_dir,
                     index=i,
+                    site_uuids=site_uuids_all_sites,
                 )
 
         if do_delete:
