@@ -39,7 +39,7 @@ def get_site_uuids(session: Session) -> list[uuid.UUID]:
 
         # reduce down to 100 if needed
         if len(site_uuids) > 100:
-            _log.error(
+            _log.warning(
                 f"Site group {site_group.site_group_name} has more than 100 sites, only saving 100"
             )
             site_uuids = site_uuids[:100]
