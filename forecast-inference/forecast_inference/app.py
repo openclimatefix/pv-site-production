@@ -23,7 +23,17 @@ from forecast_inference.utils.config import load_config
 from forecast_inference.utils.imports import import_from_module
 from forecast_inference.utils.profiling import profile
 
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOGLEVEL", "INFO")),
+    format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+)
 _log = logging.getLogger(__name__)
+
+# Get rid of the verbose logs
+logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
+logging.getLogger('aiobotocore').setLevel(logging.ERROR)
+logging.getLogger('aiobotocore').setLevel(logging.ERROR)
+
 
 version = importlib.metadata.version("forecast_inference")
 

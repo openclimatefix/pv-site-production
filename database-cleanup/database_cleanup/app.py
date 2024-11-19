@@ -50,14 +50,19 @@ def _profile(msg: str):
     _log.debug(f"Done in {t1 - t0:.3f}s")
 
 
-def _get_forecasts(session: Session, max_date: dt.datetime, limit: int) -> list[uuid.UUID]:
+def _get_forecasts(
+    session: Session,
+    max_date: dt.datetime,
+    limit: int,
+    site_uuids: Optional[list[uuid.UUID]] = None,
+) -> list[uuid.UUID]:
     """Get the `limit` older forecasts that are before `max_date`."""
-    stmt = (
-        sa.select(ForecastSQL.forecast_uuid)
-        .where(ForecastSQL.timestamp_utc < max_date)
-        .order_by(ForecastSQL.timestamp_utc)
-        .limit(limit)
-    )
+    stmt = sa.select(ForecastSQL.forecast_uuid).where(ForecastSQL.timestamp_utc < max_date)
+
+    if site_uuids is not None:
+        stmt = stmt.where(ForecastSQL.site_uuid.in_(site_uuids))
+
+    stmt = stmt.order_by(ForecastSQL.timestamp_utc).limit(limit)
 
     return session.scalars(stmt).all()
 
@@ -144,48 +149,53 @@ def main(
 
     num_forecast_deleted = 0
 
-    i = -1
-    while True:
-        i += 1
-        with Session.begin() as session:
-            forecast_uuids = _get_forecasts(
-                session,
-                max_date=date,
-                limit=batch_size,
-            )
+    # 1. save forecasts and delete them, 2. delete all other values
+    for save_forecasts in [True, False]:
+        i = -1
+        forecast_uuids = [1]
+        while len(forecast_uuids) > 0:
+            i += 1
 
-            if len(forecast_uuids) == 0:
-                _log.info(f"Done deleting forecasts made before {date}")
-                _log.info(
-                    f"A total of {num_forecast_deleted} (and corresponding values) "
-                    f"were deleted from the database."
+            with Session.begin() as session:
+                forecast_uuids = _get_forecasts(
+                    session,
+                    max_date=date,
+                    limit=batch_size,
+                    site_uuids=site_uuids_all_sites if save_forecasts else None,
                 )
-                _log.info("Exiting.")
+
+                if len(forecast_uuids) == 0:
+                    return
+
+                if (save_dir is not None) and do_delete and save_forecasts:
+                    save_forecast_and_values(
+                        session=session,
+                        forecast_uuids=forecast_uuids,
+                        directory=save_dir,
+                        index=i,
+                    )
+
+            if do_delete:
+                # Not that it is important to run this in a transaction for atomicity.
+                with Session.begin() as session:
+                    _delete_forecasts_and_values(session, forecast_uuids)
+            else:
+                print(f"Would delete data from {len(forecast_uuids)} forecasts in a first batch.")
+                # Stop here because otherwise we would loop infinitely.
                 return
 
-            if (save_dir is not None) and do_delete:
-                save_forecast_and_values(
-                    session=session,
-                    forecast_uuids=forecast_uuids,
-                    directory=save_dir,
-                    index=i,
-                    site_uuids=site_uuids_all_sites,
-                )
+            num_forecast_deleted += len(forecast_uuids)
 
-        if do_delete:
-            # Not that it is important to run this in a transaction for atomicity.
-            with Session.begin() as session:
-                _delete_forecasts_and_values(session, forecast_uuids)
-        else:
-            print(f"Would delete data from {len(forecast_uuids)} forecasts in a first batch.")
-            # Stop here because otherwise we would loop infinitely.
-            return
+            if sleep:
+                _log.debug(f"Sleeping for {sleep} seconds")
+                time.sleep(sleep)
 
-        num_forecast_deleted += len(forecast_uuids)
-
-        if sleep:
-            _log.debug(f"Sleeping for {sleep} seconds")
-            time.sleep(sleep)
+    _log.info(f"Done deleting forecasts made before {date}")
+    _log.info(
+        f"A total of {num_forecast_deleted} (and corresponding values) "
+        f"were deleted from the database."
+    )
+    _log.info("Exiting.")
 
 
 def format_date(date) -> dt.datetime:
