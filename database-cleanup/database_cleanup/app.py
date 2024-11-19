@@ -151,6 +151,9 @@ def main(
 
     # 1. save forecasts and delete them, 2. delete all other values
     for save_forecasts in [True, False]:
+
+        _log.info(f"{'Saving and' if save_forecasts else 'Deleting'} forecasts and values")
+
         i = -1
         forecast_uuids = [1]
         while len(forecast_uuids) > 0:
