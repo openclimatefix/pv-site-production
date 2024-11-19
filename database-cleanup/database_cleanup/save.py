@@ -2,11 +2,9 @@ import logging
 import os
 import uuid
 import fsspec
-from typing import Optional
 
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteGroupSQL
 from sqlalchemy.orm import Session
-import sqlalchemy as sa
 import pandas as pd
 
 
@@ -54,7 +52,6 @@ def save_forecast_and_values(
     forecast_uuids: list[uuid.UUID],
     directory: str,
     index: int = 0,
-    site_uuids: Optional[list[uuid.UUID]] = None,
 ):
     """
     Save forecast and forecast values to csv
@@ -63,7 +60,6 @@ def save_forecast_and_values(
     :param directory: the directory where they should be saved
     :param index: the index of the file, we delete the forecasts in batches,
         so there will be several files to save
-    :param site_uuids: list of site uuids to save, if its None, then we ignore this
     """
     _log.info(f"Saving data to {directory}")
 
@@ -71,15 +67,6 @@ def save_forecast_and_values(
     # check folder exists, if it doesnt, add it
     if not fs.exists(directory):
         fs.mkdir(directory)
-
-    if site_uuids is not None:
-        stmt = (
-            sa.select(ForecastSQL.forecast_uuid)
-            .filter(ForecastSQL.site_uuid.in_(site_uuids))
-            .filter(ForecastSQL.forecast_uuid.in_(forecast_uuids))
-        )
-
-        forecast_uuids = session.scalars(stmt).all()
 
     # loop over both forecast and forecast_values tables
     for table in ["forecast", "forecast_value"]:
