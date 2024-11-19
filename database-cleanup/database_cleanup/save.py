@@ -73,7 +73,9 @@ def save_forecast_and_values(
         fs.mkdir(directory)
 
     if site_uuids is not None:
-        stmt = sa.select(ForecastSQL.forecast_uuid).filter(ForecastSQL.site_uuid.in_(site_uuids))
+        stmt = sa.select(ForecastSQL.forecast_uuid).\
+            filter(ForecastSQL.site_uuid.in_(site_uuids)).\
+            filter(ForecastSQL.forecast_uuids.in_(forecast_uuids))
 
         forecast_uuids = session.scalars(stmt).all()
 
