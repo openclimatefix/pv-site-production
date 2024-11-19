@@ -164,9 +164,6 @@ def main(
                     site_uuids=site_uuids_all_sites if save_forecasts else None,
                 )
 
-                if len(forecast_uuids) == 0:
-                    return
-
                 if (save_dir is not None) and do_delete and save_forecasts:
                     save_forecast_and_values(
                         session=session,
