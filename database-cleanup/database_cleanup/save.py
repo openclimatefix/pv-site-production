@@ -90,6 +90,10 @@ def save_forecast_and_values(
         forecasts_sql = query.all()
         forecasts_df = pd.DataFrame([f.__dict__ for f in forecasts_sql])
 
+        if len(forecasts_df) == 0:
+            _log.info(f"No data found for {table}")
+            continue
+
         # drop column _sa_instance_state if it is there
         if "_sa_instance_state" in forecasts_df.columns:
             forecasts_df = forecasts_df.drop(columns="_sa_instance_state")
