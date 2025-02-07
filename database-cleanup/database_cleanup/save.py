@@ -27,7 +27,7 @@ def get_site_uuids(session: Session) -> list[uuid.UUID]:
     site_groups = session.query(SiteGroupSQL).all()
 
     # only select site groups with service level 1 or above
-    site_groups = [site_group for site_group in site_groups if site_group.service_level not None]
+    site_groups = [site_group for site_group in site_groups if not site_group.service_level is None]
     site_groups = [site_group for site_group in site_groups if site_group.service_level >= 1]
 
     site_uuids_all_sites = []
