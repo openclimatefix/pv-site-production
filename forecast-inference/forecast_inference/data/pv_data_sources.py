@@ -162,7 +162,7 @@ class DbPvDataSource(PvDataSource):
             da = da.isel(id=0)
 
         # interpolate da to 15 min intervals, with a limit of 1
-        da = da.interp(ts=pd.date_range(start_ts, end_ts, freq="15T"), method="linear", limit=1)
+        da = da.interp(ts=pd.date_range(start_ts, end_ts, freq="15T"), method="linear", kwargs=dict(limit=1))
 
         return da
 
