@@ -161,8 +161,11 @@ class DbPvDataSource(PvDataSource):
         if was_scalar:
             da = da.isel(id=0)
 
-        # interpolate da to 15 min intervals, with a limit of 1
-        da = da.interp(ts=pd.date_range(start_ts, end_ts, freq="15T"), method="linear", kwargs=dict(limit=1))
+        # resample to 15 min intervals
+        da = da.resample(ts="15T").mean()
+
+        # use interpolate_na to interpolate nans with a limit of 1
+        da = da.interpolate_na(dim="ts", method="linear", limit=1)
 
         return da
 
