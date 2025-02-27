@@ -22,8 +22,8 @@ def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> PvSiteMod
         model = load_model(config["model_path"])
 
     # refactor and download nwp data
-    load_nwp_and_refactor(config["nwp"]["args"][0], "nwp.nc")
-    config["nwp"]["args"][0] = "nwp.nc"
+    load_nwp_and_refactor(config["nwp"]["args"][0], "nwp.zarr")
+    config["nwp"]["args"][0] = "nwp.zarr"
 
     with profile(f'Getting NWP data: {config["nwp"]}'):
         nwp_data_sources = instantiate(**config["nwp"])
