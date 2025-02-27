@@ -1,5 +1,6 @@
 """ This file loads the NWP data, and saves it in the old format"""
 
+import shutil
 import xarray as xr
 from forecast_inference.utils.geospatial import lon_lat_to_osgb
 
@@ -51,4 +52,8 @@ def load_nwp_and_refactor(in_path: str, out_path:str) -> None:
         nwp = nwp.assign_coords(x_osgb=x[0])
         nwp = nwp.assign_coords(y_osgb=y[:, 0])
 
+    # if there is a folder or a file, remove out_path
+    shutil.rmtree(out_path, ignore_errors=True)
+    
+    # save file
     nwp.to_zarr(out_path)
