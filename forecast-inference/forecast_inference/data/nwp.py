@@ -51,4 +51,4 @@ def load_nwp_and_refactor(in_path: str, out_path:str) -> None:
         nwp = nwp.assign_coords(x_osgb=x[0])
         nwp = nwp.assign_coords(y_osgb=y[:, 0])
 
-    nwp.to_netcdf(out_path)
+    nwp.to_zarr(out_path)
