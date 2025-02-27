@@ -47,7 +47,7 @@ def osgb_to_lon_lat(
 def lon_lat_to_osgb(
     x: Union[Number, np.ndarray],
     y: Union[Number, np.ndarray],
-) -> tuple[Union[Number, np.ndarray], Union[Number, np.ndarray]]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Change lon-lat coordinates to OSGB.
 
     Args:
