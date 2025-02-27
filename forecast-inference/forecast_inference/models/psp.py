@@ -8,9 +8,9 @@ from psp.data_sources.pv import PvDataSource
 from psp.models.base import PvSiteModel
 from psp.serialization import load_model
 
+from forecast_inference.data.nwp import load_nwp_and_refactor
 from forecast_inference.utils.imports import instantiate
 from forecast_inference.utils.profiling import profile
-from forecast_inference.data.nwp import load_nwp_and_refactor
 
 _log = logging.getLogger(__name__)
 
