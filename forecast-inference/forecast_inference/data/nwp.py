@@ -1,7 +1,7 @@
 """ This file loads the NWP data, and saves it in the old format"""
 
 import xarray as xr
-from ocf_datapipes.utils.geospatial import lon_lat_to_osgb
+from forecast_inference.utils.geospatial import lon_lat_to_osgb
 
 
 def load_nwp_and_refactor(in_path: str, out_path:str) -> None:
