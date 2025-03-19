@@ -2,7 +2,6 @@
 Models from the `pv-site-prediction` repo.
 """
 import logging
-import os
 from typing import Any
 
 from psp.data_sources.pv import PvDataSource
