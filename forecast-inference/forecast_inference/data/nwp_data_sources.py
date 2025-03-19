@@ -23,7 +23,7 @@ lambert_aea2 = {
     "datum": "WGS84",
 }
 
-laea = pyproj.Proj(**lambert_aea2)
+laea = pyproj.Proj(**lambert_aea2)  # type: ignore[arg-type]
 osgb = pyproj.Proj(f"+init=EPSG:{OSGB36}")
 
 laea_to_osgb = pyproj.Transformer.from_proj(laea, osgb).transform
