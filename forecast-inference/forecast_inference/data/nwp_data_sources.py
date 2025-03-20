@@ -37,7 +37,7 @@ def download_and_add_osgb_to_nwp_data_source(from_nwp_path: str, to_nwp_path: st
     """
 
     logger.debug(f"Loading NWP data from {from_nwp_path}")
-    nwp = xr.open_dataset(from_nwp_path)
+    nwp = xr.open_zarr(from_nwp_path)
 
     # if um-ukv is in the datavars, then this comes from the new new-consumer > 1.0.0
     # We need to rename the data variables, and
