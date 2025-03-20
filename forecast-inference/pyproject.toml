@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "forecast-inference"
-version = "1.0.22"
+version = "1.0.23"
 description = ""
 authors = ["Peter Dudfield"]
 packages = [{include = "forecast_inference"}]
