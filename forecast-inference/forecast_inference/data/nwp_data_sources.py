@@ -100,4 +100,7 @@ def download_and_add_osgb_to_nwp_data_source(from_nwp_path: str, to_nwp_path: st
 
     # save to zarr
     logger.debug(f"Saving NWP data from {to_nwp_path}")
+    for v in list(nwp.coords.keys()):
+        if nwp.coords[v].dtype == object:
+            nwp.coords[v] = nwp.coords[v].astype("unicode")
     nwp.to_zarr(to_nwp_path, mode="w")
