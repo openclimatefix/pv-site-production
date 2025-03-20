@@ -18,6 +18,7 @@ from psp.typings import PvId, Timestamp, X
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
+from forecast_inference.data.nwp_data_sources import download_and_add_osgb_to_nwp_data_source
 from forecast_inference.data.pv_data_sources import DbPvDataSource
 from forecast_inference.utils.config import load_config
 from forecast_inference.utils.imports import import_from_module
@@ -30,9 +31,9 @@ logging.basicConfig(
 _log = logging.getLogger(__name__)
 
 # Get rid of the verbose logs
-logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
-logging.getLogger('aiobotocore').setLevel(logging.ERROR)
-logging.getLogger('aiobotocore').setLevel(logging.ERROR)
+logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
+logging.getLogger("aiobotocore").setLevel(logging.ERROR)
+logging.getLogger("aiobotocore").setLevel(logging.ERROR)
 
 
 version = importlib.metadata.version("forecast_inference")
@@ -212,6 +213,11 @@ def main(
     url = config["pv_db_url"]
 
     database_connection = DatabaseConnection(url, echo=False)
+
+    # download and add osbg to nwp datasource
+    nwp_zarr_path = os.getenv("NWP_ZARR_PATH")
+    if nwp_zarr_path is not None:
+        download_and_add_osgb_to_nwp_data_source(nwp_zarr_path, "nwp.zarr")
 
     # Wrap into a PV data source for the models.
     _log.info("Creating PV data source")
