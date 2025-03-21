@@ -105,7 +105,7 @@ def download_and_add_osgb_to_nwp_data_source(
         nwp = nwp.sel(variable=variables_to_keep)
 
     # trim to x>0, gets rid of ireland and the sea
-    nwp = nwp.sel(x=slice(0,nwp.x.max()))
+    nwp = nwp.sel(x=slice(0, nwp.x.max()))
 
     # save to zarr
     logger.debug(f"Saving NWP data from {to_nwp_path}")
