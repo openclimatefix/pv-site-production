@@ -20,12 +20,12 @@ lambert_aea2 = {
     "lon_0": -2.5,
     "x_0": 0.0,
     "y_0": 0.0,
-    "ellps": "WGS84",
-    "datum": "WGS84",
+    # "ellps": "WGS84",
+    # "datum": "WGS84",
 }
 
 laea = pyproj.Proj(**lambert_aea2)  # type: ignore[arg-type]
-osgb = pyproj.Proj(f"+init=EPSG:{OSGB36}")
+osgb = pyproj.Proj(f"EPSG:{OSGB36}")
 
 laea_to_osgb = pyproj.Transformer.from_proj(laea, osgb).transform
 
@@ -103,6 +103,9 @@ def download_and_add_osgb_to_nwp_data_source(
     # keep only the variables we need
     if variables_to_keep is not None:
         nwp = nwp.sel(variable=variables_to_keep)
+
+    # trim to x>0, gets rid of ireland and the sea
+    nwp = nwp.sel(x=slice(0, nwp.x.max()))
 
     # save to zarr
     logger.debug(f"Saving NWP data from {to_nwp_path}")
