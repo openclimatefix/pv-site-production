@@ -108,7 +108,7 @@ def download_and_add_osgb_to_nwp_data_source(from_nwp_path: str, to_nwp_path: st
     nwp = nwp.transpose("variable", "init_time", "step", "y", "x")
 
     # adjust chunk size to (1,1,43,639,455)
-    nwp = nwp.chunk({"variable": 1, "init_time": 1, "step": 43, "y": 639, "x": 455})
+    nwp = nwp.chunk({"variable": 1, "init_time": 1, "step": 43, "y": 100, "x": 100})
 
     # save to zarr
     nwp.to_zarr(to_nwp_path, mode="w")
