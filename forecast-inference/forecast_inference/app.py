@@ -217,7 +217,9 @@ def main(
     # download and add osbg to nwp datasource
     nwp_zarr_path = os.getenv("NWP_ZARR_PATH")
     if nwp_zarr_path is not None:
-        download_and_add_osgb_to_nwp_data_source(nwp_zarr_path, "nwp.zarr")
+        download_and_add_osgb_to_nwp_data_source(
+            nwp_zarr_path, "nwp.zarr", variables_to_keep=config["nwp"]["kwargs"]["variables"]
+        )
 
     # Wrap into a PV data source for the models.
     _log.info("Creating PV data source")

@@ -32,7 +32,9 @@ laea_to_osgb = pyproj.Transformer.from_proj(laea, osgb).transform
 logger = logging.getLogger(__name__)
 
 
-def download_and_add_osgb_to_nwp_data_source(from_nwp_path: str, to_nwp_path: str) -> None:
+def download_and_add_osgb_to_nwp_data_source(
+    from_nwp_path: str, to_nwp_path: str, variables_to_keep: None | list = None
+) -> None:
     """
     Download and add OSBG to the NWP data source.
     """
@@ -97,6 +99,10 @@ def download_and_add_osgb_to_nwp_data_source(from_nwp_path: str, to_nwp_path: st
         # we just take 1-d versions of x_osgb and y_osgb, and reassign
         nwp = nwp.assign_coords(x=x_osgb[0])
         nwp = nwp.assign_coords(y=y_osgb[:, 0])
+
+    # keep only the variables we need
+    if variables_to_keep is not None:
+        nwp = nwp.sel(variable=variables_to_keep)
 
     # save to zarr
     logger.debug(f"Saving NWP data from {to_nwp_path}")
