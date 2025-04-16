@@ -15,7 +15,7 @@ logging.basicConfig(
 _log = logging.getLogger(__name__)
 
 
-def get_site_uuids(session: Session) -> list[uuid.UUID]:
+def get_site_uuids(session: Session, country: str = 'uk') -> list[uuid.UUID]:
     """
     Get the site uuids for the site group names
 
@@ -34,7 +34,7 @@ def get_site_uuids(session: Session) -> list[uuid.UUID]:
     for site_group in site_groups:
         # get the site uuids
         sites = site_group.sites
-        site_uuids = [site.site_uuid for site in sites]
+        site_uuids = [site.site_uuid for site in sites if site.country == country]
 
         # reduce down to 100 if needed
         if len(site_uuids) > 100:
