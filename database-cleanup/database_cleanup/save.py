@@ -15,11 +15,12 @@ logging.basicConfig(
 _log = logging.getLogger(__name__)
 
 
-def get_site_uuids(session: Session, country: str = 'uk') -> list[uuid.UUID]:
+def get_site_uuids(session: Session, country: str = "uk") -> list[uuid.UUID]:
     """
     Get the site uuids for the site group names
 
     :param session:
+    :param country: the country to filter by
     :return:
     """
 
