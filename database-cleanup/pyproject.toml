@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "database-cleanup"
-version = "1.0.29"
+version = "1.0.30"
 description = ""
 authors = ["Open Climate Fix"]
 packages = [{include = "database_cleanup"}]
