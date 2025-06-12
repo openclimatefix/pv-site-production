@@ -162,7 +162,7 @@ def main(
         _log.info(
             f"Will be saving and deleting data for {len(site_uuids_all_sites_for_saving)} sites"
         )
-        _log.info(f"Will be delete data for {len(site_uuids_all_sites)} sites")
+        _log.info(f"Will be deleting data for {len(site_uuids_all_sites)} sites")
 
     if do_delete:
         _log.info(f"Deleting forecasts made before {date} (UTC).")
