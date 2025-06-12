@@ -18,7 +18,10 @@ import sentry_sdk
 import sqlalchemy as sa
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL
 from sqlalchemy.orm import Session, sessionmaker
-from database_cleanup.save import get_site_uuids_with_site_group_service_level, save_forecast_and_values
+from database_cleanup.save import (
+    get_site_uuids_with_site_group_service_level,
+    save_forecast_and_values,
+)
 
 
 logging.basicConfig(
@@ -156,7 +159,9 @@ def main(
     with Session.begin() as session:
         site_uuids_all_sites_for_saving = get_site_uuids_with_site_group_service_level(session)
         site_uuids_all_sites = get_site_uuids(session, country="uk")
-        _log.info(f"Will be saving and deleting data for {len(site_uuids_all_sites_for_saving)} sites")
+        _log.info(
+            f"Will be saving and deleting data for {len(site_uuids_all_sites_for_saving)} sites"
+        )
         _log.info(f"Will be delete data for {len(site_uuids_all_sites)} sites")
 
     if do_delete:
@@ -180,7 +185,9 @@ def main(
                     session,
                     max_date=date,
                     limit=batch_size,
-                    site_uuids=site_uuids_all_sites_for_saving if save_forecasts else site_uuids_all_sites,
+                    site_uuids=site_uuids_all_sites_for_saving
+                    if save_forecasts
+                    else site_uuids_all_sites,
                 )
 
                 if (save_dir is not None) and do_delete and save_forecasts:
