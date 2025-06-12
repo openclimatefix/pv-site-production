@@ -59,9 +59,10 @@ def get_site_uuids(session: Session, country: str = "uk") -> list[uuid.UUID]:
     :return: list of site uuids
     """
 
-    site_groups = session.query(SiteSQL.site_uuid).where(SiteSQL.country == country).all()
+    site_uuids = session.query(SiteSQL.site_uuid).where(SiteSQL.country == country).all()
+    site_uuids = [site_uuid[0] for site_uuid in site_uuids]
 
-    return site_groups
+    return site_uuids
 
 
 def _get_forecasts(
