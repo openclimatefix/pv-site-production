@@ -59,7 +59,7 @@ def get_site_uuids(session: Session, country: str = "uk") -> list[uuid.UUID]:
     :return: list of site uuids
     """
 
-    site_groups = session.query(SiteSQL.site_uuid).where(SiteSQL.country = country).all()
+    site_groups = session.query(SiteSQL.site_uuid).where(SiteSQL.country == country).all()
 
     return site_groups
 
