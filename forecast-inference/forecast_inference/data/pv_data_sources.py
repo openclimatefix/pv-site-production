@@ -166,7 +166,7 @@ class DbPvDataSource(PvDataSource):
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""
         with self._database_connection.get_session() as session:
-            query = session.query(SiteSQL.site_uuid)
+            query = session.query(SiteSQL.site_uuid).where(SiteSQL.country=="uk")
             site_uuids = [str(row.site_uuid) for row in query]
         _log.debug("%i site_uuids from DB", len(site_uuids))
         return site_uuids
