@@ -68,6 +68,7 @@ def db_data(database_connection, now):
                 longitude=3,  # type: ignore
                 capacity_kw=4,  # type: ignore
                 ml_id=i,
+                country="uk",
             )
             session.add(site)
             sites.append(site)
