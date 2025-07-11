@@ -16,7 +16,7 @@ import click
 import importlib.metadata
 import sentry_sdk
 import sqlalchemy as sa
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL
 from sqlalchemy.orm import Session, sessionmaker
 from database_cleanup.save import (
     get_site_uuids_with_site_group_service_level,
@@ -62,7 +62,7 @@ def get_site_uuids(session: Session, country: str = "uk") -> list[uuid.UUID]:
     :return: list of site uuids
     """
 
-    site_uuids = session.query(SiteSQL.site_uuid).where(SiteSQL.country == country).all()
+    site_uuids = session.query(LocationSQL.site_uuid).where(LocationSQL.country == country).all()
     site_uuids = [site_uuid[0] for site_uuid in site_uuids]
 
     return site_uuids

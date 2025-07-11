@@ -2,9 +2,10 @@
 NWP Data Source
 """
 import logging
+
+import ocf_blosc2  # noqa
 import pyproj
 import xarray as xr
-import ocf_blosc2  # noqa
 
 # OSGB is also called "OSGB 1936 / British National Grid -- United
 # Kingdom Ordnance Survey".  OSGB is used in many UK electricity

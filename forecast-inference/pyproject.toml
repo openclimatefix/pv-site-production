@@ -12,7 +12,7 @@ s3fs = "^2022.11.0"
 python-dotenv = "^0.21.1"
 sqlalchemy = ">=2.0"
 pv-site-prediction = ">=0.1.19"
-pvsite-datamodel = "^1.0.28"
+pvsite-datamodel = {git = "https://github.com/openclimatefix/pv-site-datamodel.git", branch = "site-location"}
 sentry-sdk = "^2.1.1"
 setuptools = "^75.1.0"
 

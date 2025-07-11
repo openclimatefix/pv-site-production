@@ -12,7 +12,7 @@ import xarray as xr
 from psp.data_sources.pv import PvDataSource, min_timestamp
 from psp.typings import PvId, Timestamp
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import GenerationSQL, SiteSQL
+from pvsite_datamodel.sqlmodels import GenerationSQL, LocationSQL
 from sqlalchemy.orm import Session
 
 META_KEYS = [
@@ -40,7 +40,7 @@ def _get_site_client_id_to_uuid_mapping(
 
     This is needed because our meta data is still by client_site_id.
     """
-    query = session.query(SiteSQL)
+    query = session.query(LocationSQL)
     mapping = {str(row.client_site_id): str(row.site_uuid) for row in query}
     return mapping
 
@@ -95,8 +95,8 @@ class DbPvDataSource(PvDataSource):
             # Get the site info in a separate query. We don't JOIN on `generation` in case there
             # is no generation data.
 
-            site_query = session.query(SiteSQL).filter(
-                SiteSQL.site_uuid.in_([UUID(x) for x in site_uuids])
+            site_query = session.query(LocationSQL).filter(
+                LocationSQL.site_uuid.in_([UUID(x) for x in site_uuids])
             )
             sites = site_query.all()
 
@@ -166,7 +166,7 @@ class DbPvDataSource(PvDataSource):
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""
         with self._database_connection.get_session() as session:
-            query = session.query(SiteSQL.site_uuid).where(SiteSQL.country == "uk")
+            query = session.query(LocationSQL.site_uuid).where(LocationSQL.country == "uk")
             site_uuids = [str(row.site_uuid) for row in query]
         _log.debug("%i site_uuids from DB", len(site_uuids))
         return site_uuids

@@ -11,7 +11,7 @@ Row = Any
 
 def get_site_uuids(session: Session) -> list[str]:
     """Get all the sites."""
-    query = sa.select(models.SiteSQL.site_uuid)
+    query = sa.select(models.LocationSQL.site_uuid)
     result = session.execute(query).scalars().all()
     return [str(uuid) for uuid in result if uuid is not None]
 

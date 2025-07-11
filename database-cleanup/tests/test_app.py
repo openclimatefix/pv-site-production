@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from click.testing import CliRunner
 from database_cleanup.app import main, format_date
 from freezegun import freeze_time
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL, SiteGroupSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL, SiteGroupSQL
 from sqlalchemy.orm import Session
 
 
@@ -63,7 +63,7 @@ def site(session):
     session.commit()
 
     # Create a new site (this way we know it won't have any forecasts yet).
-    site = SiteSQL(ml_id=hash(uuid.uuid4()) % 2147483647)
+    site = LocationSQL(ml_id=hash(uuid.uuid4()) % 2147483647)
     session.add(site)
     session.commit()
 
