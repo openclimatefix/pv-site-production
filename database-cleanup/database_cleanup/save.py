@@ -3,7 +3,7 @@ import os
 import uuid
 import fsspec
 
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteGroupSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGroupSQL
 from sqlalchemy.orm import Session
 import pandas as pd
 
@@ -27,7 +27,7 @@ def get_site_uuids_with_site_group_service_level(
     """
 
     # get all site groups
-    site_groups = session.query(SiteGroupSQL).all()
+    site_groups = session.query(LocationGroupSQL).all()
 
     # only select site groups with service level 1 or above
     site_groups = [site_group for site_group in site_groups if site_group.service_level is not None]
@@ -36,13 +36,13 @@ def get_site_uuids_with_site_group_service_level(
     site_uuids_all_sites = []
     for site_group in site_groups:
         # get the site uuids
-        sites = site_group.sites
+        sites = site_group.locations
         site_uuids = [site.location_uuid for site in sites if site.country == country]
 
         # reduce down to 100 if needed
         if len(site_uuids) > 100:
             _log.warning(
-                f"Site group {site_group.site_group_name} has more than 100 sites, only saving 100"
+                f"Site group {site_group.location_group_name} has more than 100 sites, only saving 100"
             )
             site_uuids = site_uuids[:100]
 

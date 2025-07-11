@@ -22,7 +22,9 @@ def _add_foreasts(
     frequency: int,
 ):
     for timestamp in timestamps:
-        forecast = ForecastSQL(site_uuid=site_uuid, timestamp_utc=timestamp, forecast_version="0")
+        forecast = ForecastSQL(
+            location_uuid=site_uuid, timestamp_utc=timestamp, forecast_version="0"
+        )
         session.add(forecast)
         session.commit()
 
@@ -67,7 +69,7 @@ def site(session):
     session.add(site)
     session.commit()
 
-    site_group.sites.append(site)
+    site_group.locations.append(site)
     session.commit()
 
     return site
@@ -137,7 +139,7 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
             sa.select(sa.func.count())
             .select_from(ForecastValueSQL)
             .join(ForecastSQL)
-            .where(ForecastSQL.site_uuid == site_uuid)
+            .where(ForecastSQL.location_uuid == site_uuid)
         ).one()
         assert num_values_left == expected * num_values
 
@@ -159,7 +161,7 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
 @pytest.mark.parametrize("do_delete", [True, False])
 def test_app_dry_run(session: Session, site, do_delete: bool):
     # We'll only consider this site.
-    site_uuid = site.site_uuid
+    site_uuid = site.location_uuid
 
     # Write some forecasts to the database for our site.
     num_forecasts = 10
@@ -189,7 +191,7 @@ def test_app_dry_run(session: Session, site, do_delete: bool):
     num_forecasts_left = session.scalars(
         sa.select(sa.func.count())
         .select_from(ForecastSQL)
-        .where(ForecastSQL.site_uuid == site_uuid)
+        .where(ForecastSQL.location_uuid == site_uuid)
     ).one()
     assert num_forecasts_left == expected
 
@@ -197,6 +199,6 @@ def test_app_dry_run(session: Session, site, do_delete: bool):
         sa.select(sa.func.count())
         .select_from(ForecastValueSQL)
         .join(ForecastSQL)
-        .where(ForecastSQL.site_uuid == site_uuid)
+        .where(ForecastSQL.location_uuid == site_uuid)
     ).one()
     assert num_values_left == expected * num_values

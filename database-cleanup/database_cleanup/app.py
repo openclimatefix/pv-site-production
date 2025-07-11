@@ -62,7 +62,9 @@ def get_site_uuids(session: Session, country: str = "uk") -> list[uuid.UUID]:
     :return: list of site uuids
     """
 
-    site_uuids = session.query(LocationSQL.location_uuid).where(LocationSQL.country == country).all()
+    site_uuids = (
+        session.query(LocationSQL.location_uuid).where(LocationSQL.country == country).all()
+    )
     site_uuids = [site_uuid[0] for site_uuid in site_uuids]
 
     return site_uuids
@@ -78,7 +80,7 @@ def _get_forecasts(
     stmt = sa.select(ForecastSQL.forecast_uuid).where(ForecastSQL.timestamp_utc < max_date)
 
     if site_uuids is not None:
-        stmt = stmt.where(ForecastSQL.site_uuid.in_(site_uuids))
+        stmt = stmt.where(ForecastSQL.location_uuid.in_(site_uuids))
 
     stmt = stmt.order_by(ForecastSQL.timestamp_utc).limit(limit)
 
