@@ -42,7 +42,8 @@ def get_site_uuids_with_site_group_service_level(
         # reduce down to 100 if needed
         if len(site_uuids) > 100:
             _log.warning(
-                f"Site group {site_group.location_group_name} has more than 100 sites, only saving 100"
+                f"Site group {site_group.location_group_name} "
+                "has more than 100 sites, only saving 100"
             )
             site_uuids = site_uuids[:100]
 
