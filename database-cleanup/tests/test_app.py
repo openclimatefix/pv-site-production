@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from click.testing import CliRunner
 from database_cleanup.app import main, format_date
 from freezegun import freeze_time
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL, SiteGroupSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL, LocationGroupSQL
 from sqlalchemy.orm import Session
 
 
@@ -58,7 +58,7 @@ def _run_cli(func, args: list[str]):
 def site(session):
     # create SiteGroupSQL
     now = pd.Timestamp.now().isoformat()
-    site_group = SiteGroupSQL(site_group_name=f"test_group_name_{now}", service_level=1)
+    site_group = LocationGroupSQL(location_group_name=f"test_group_name_{now}", service_level=1)
     session.add(site_group)
     session.commit()
 
@@ -90,7 +90,7 @@ def site(session):
 )
 def test_app(session: Session, site, batch_size: int, date_str: str | None, expected: int):
     # We'll only consider this site.
-    site_uuid = site.site_uuid
+    site_uuid = site.location_uuid
 
     # Write some forecasts to the database for our site.
     num_forecasts = 10
@@ -129,7 +129,7 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
         num_forecasts_left = session.scalars(
             sa.select(sa.func.count())
             .select_from(ForecastSQL)
-            .where(ForecastSQL.site_uuid == site_uuid)
+            .where(ForecastSQL.location_uuid == site_uuid)
         ).one()
         assert num_forecasts_left == expected
 

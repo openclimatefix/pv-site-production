@@ -79,7 +79,7 @@ class DbPvDataSource(PvDataSource):
         _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
         with self._database_connection.get_session() as session:
             query = session.query(GenerationSQL).filter(
-                GenerationSQL.site_uuid.in_([UUID(x) for x in site_uuids])
+                GenerationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
             )
 
             if start_ts is not None:
@@ -96,7 +96,7 @@ class DbPvDataSource(PvDataSource):
             # is no generation data.
 
             site_query = session.query(LocationSQL).filter(
-                LocationSQL.site_uuid.in_([UUID(x) for x in site_uuids])
+                LocationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
             )
             sites = site_query.all()
 
@@ -110,7 +110,7 @@ class DbPvDataSource(PvDataSource):
         df = pd.DataFrame.from_records(
             [
                 {
-                    "id": str(g.site_uuid),
+                    "id": str(g.location_uuid),
                     # We remove the timezone information since otherwise the timestamp index gets
                     # converted to an "object" index later. In any case we should have everything in
                     # UTC.
@@ -138,7 +138,7 @@ class DbPvDataSource(PvDataSource):
 
         # Add the metadata associated with the PV systems.
         meta = {
-            str(site.site_uuid): {key: _to_float(getattr(site, key)) for key in META_KEYS}
+            str(site.location_uuid): {key: _to_float(getattr(site, key)) for key in META_KEYS}
             for site in sites
         }
 
@@ -166,8 +166,8 @@ class DbPvDataSource(PvDataSource):
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""
         with self._database_connection.get_session() as session:
-            query = session.query(SiteSQL.site_uuid).where(SiteSQL.country == "uk")
-            site_uuids = [str(row.site_uuid) for row in query]
+            query = session.query(LocationSQL.location_uuid).where(LocationSQL.country == "uk")
+            site_uuids = [str(row.location_uuid) for row in query]
         _log.debug("%i site_uuids from DB", len(site_uuids))
         return site_uuids
 

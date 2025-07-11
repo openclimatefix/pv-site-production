@@ -3,7 +3,7 @@ import os
 
 import pytest
 import sqlalchemy as sa
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL
 
 from forecast_inference.scripts.live_eval_model import main
 from forecast_inference.utils.testing import run_click_script
@@ -15,7 +15,7 @@ def forecasts(database_connection, now):
     num_forecast_values = 4
 
     with database_connection.get_session() as db_session:
-        site_uuids = db_session.scalars(sa.select(SiteSQL.site_uuid)).all()
+        site_uuids = db_session.scalars(sa.select(LocationSQL.location_uuid)).all()
 
         for site_uuid in site_uuids:
             for i in range(num_forecasts):
@@ -23,7 +23,7 @@ def forecasts(database_connection, now):
                 timestamp_utc = now - dt.timedelta(minutes=i + 1)
 
                 forecast = ForecastSQL(
-                    site_uuid=site_uuid,
+                    location_uuid=site_uuid,
                     timestamp_utc=timestamp_utc,
                     forecast_version="0",
                 )

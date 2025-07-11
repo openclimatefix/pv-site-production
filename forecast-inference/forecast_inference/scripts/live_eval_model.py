@@ -17,7 +17,7 @@ def _resample_df(df: pd.DataFrame, resample_minutes: int) -> pd.DataFrame:
     """Resample the 'start_utc' index to a given frequency."""
     return df.groupby(
         [
-            pd.Grouper(level="site_uuid"),
+            pd.Grouper(level="location_uuid"),
             pd.Grouper(
                 freq=f"{resample_minutes}min",
                 level="start_utc",
@@ -105,14 +105,14 @@ def main(
 
     df_generation = rows_to_df(generation_rows)
 
-    df_generation = df_generation[["site_uuid", "start_utc", "generation_power_kw"]]
+    df_generation = df_generation[["location_uuid", "start_utc", "generation_power_kw"]]
 
-    df_generation = df_generation.set_index(["site_uuid", "start_utc"])
+    df_generation = df_generation.set_index(["location_uuid", "start_utc"])
 
     # This is a quick and dirty way of removing nights.
     df_generation = df_generation[df_generation["generation_power_kw"] > 0.001]
 
-    site_uuids = list(df_generation.index.unique(level="site_uuid"))
+    site_uuids = list(df_generation.index.unique(level="location_uuid"))
 
     print(f"\nThere were {len(site_uuids)} sites with non-trivial generation data.")
 
@@ -126,11 +126,11 @@ def main(
             horizon_minutes=horizon_minutes,
         )
 
-    _log.info("We got {len(forecast_rows)} rows")
+    _log.info(f"We got {len(forecast_rows)} rows")
 
     df_forecasts = rows_to_df(forecast_rows)
-    df_forecasts = df_forecasts[["site_uuid", "start_utc", "forecast_power_kw"]]
-    df_forecasts = df_forecasts.set_index(["site_uuid", "start_utc"])
+    df_forecasts = df_forecasts[["location_uuid", "start_utc", "forecast_power_kw"]]
+    df_forecasts = df_forecasts.set_index(["location_uuid", "start_utc"])
 
     _log.info(f"Resampling generation to {resample_minutes} minutes")
 
@@ -156,8 +156,8 @@ def main(
     # This gives us a nice and interpretable pourcent that pretty much corresponds of our
     # intuitive idea of percent error.
     abs_diff = abs(df["forecast_power_kw"] - df["generation_power_kw"])
-    sum_abs_diff = abs_diff.groupby(pd.Grouper(level="site_uuid")).sum()
-    sum_generation = df["generation_power_kw"].groupby(pd.Grouper(level="site_uuid")).sum()
+    sum_abs_diff = abs_diff.groupby(pd.Grouper(level="location_uuid")).sum()
+    sum_generation = df["generation_power_kw"].groupby(pd.Grouper(level="location_uuid")).sum()
 
     # We get one error value per site.
     error = sum_abs_diff / sum_generation * 100.0

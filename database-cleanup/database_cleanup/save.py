@@ -37,7 +37,7 @@ def get_site_uuids_with_site_group_service_level(
     for site_group in site_groups:
         # get the site uuids
         sites = site_group.sites
-        site_uuids = [site.site_uuid for site in sites if site.country == country]
+        site_uuids = [site.location_uuid for site in sites if site.country == country]
 
         # reduce down to 100 if needed
         if len(site_uuids) > 100:

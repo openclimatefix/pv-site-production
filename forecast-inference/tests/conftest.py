@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import pytest
 from freezegun import freeze_time
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import Base, GenerationSQL, SiteSQL, StatusSQL
+from pvsite_datamodel.sqlmodels import Base, GenerationSQL, LocationSQL, StatusSQL
 from testcontainers.postgres import PostgresContainer
 
 
@@ -62,8 +62,8 @@ def db_data(database_connection, now):
         # Sites
         sites = []
         for i in range(n_sites):
-            site = SiteSQL(
-                client_site_id=i + 1,
+            site = LocationSQL(
+                client_location_id=i + 1,
                 latitude=51.0,  # type: ignore
                 longitude=3,  # type: ignore
                 capacity_kw=4,  # type: ignore
@@ -81,7 +81,7 @@ def db_data(database_connection, now):
         for site in sites:
             for i in range(n_generations):
                 generation = GenerationSQL(
-                    site_uuid=site.site_uuid,
+                    location_uuid=site.location_uuid,
                     generation_power_kw=i,  # type: ignore
                     start_utc=start_times[i],
                     end_utc=start_times[i] + timedelta(minutes=5),
