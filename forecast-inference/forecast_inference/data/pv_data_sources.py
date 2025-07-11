@@ -41,7 +41,7 @@ def _get_site_client_id_to_uuid_mapping(
     This is needed because our meta data is still by client_site_id.
     """
     query = session.query(LocationSQL)
-    mapping = {str(row.client_name_id): str(row.location_uuid) for row in query}
+    mapping = {str(row.client_location_id): str(row.location_uuid) for row in query}
     return mapping
 
 
