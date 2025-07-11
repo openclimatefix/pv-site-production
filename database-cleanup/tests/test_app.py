@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from click.testing import CliRunner
 from database_cleanup.app import main, format_date
 from freezegun import freeze_time
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, SiteSQL, SiteGroupSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL, LocationGroupSQL
 from sqlalchemy.orm import Session
 
 
@@ -22,7 +22,9 @@ def _add_foreasts(
     frequency: int,
 ):
     for timestamp in timestamps:
-        forecast = ForecastSQL(site_uuid=site_uuid, timestamp_utc=timestamp, forecast_version="0")
+        forecast = ForecastSQL(
+            location_uuid=site_uuid, timestamp_utc=timestamp, forecast_version="0"
+        )
         session.add(forecast)
         session.commit()
 
@@ -58,16 +60,16 @@ def _run_cli(func, args: list[str]):
 def site(session):
     # create SiteGroupSQL
     now = pd.Timestamp.now().isoformat()
-    site_group = SiteGroupSQL(site_group_name=f"test_group_name_{now}", service_level=1)
+    site_group = LocationGroupSQL(location_group_name=f"test_group_name_{now}", service_level=1)
     session.add(site_group)
     session.commit()
 
     # Create a new site (this way we know it won't have any forecasts yet).
-    site = SiteSQL(ml_id=hash(uuid.uuid4()) % 2147483647)
+    site = LocationSQL(ml_id=hash(uuid.uuid4()) % 2147483647)
     session.add(site)
     session.commit()
 
-    site_group.sites.append(site)
+    site_group.locations.append(site)
     session.commit()
 
     return site
@@ -90,7 +92,7 @@ def site(session):
 )
 def test_app(session: Session, site, batch_size: int, date_str: str | None, expected: int):
     # We'll only consider this site.
-    site_uuid = site.site_uuid
+    site_uuid = site.location_uuid
 
     # Write some forecasts to the database for our site.
     num_forecasts = 10
@@ -129,7 +131,7 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
         num_forecasts_left = session.scalars(
             sa.select(sa.func.count())
             .select_from(ForecastSQL)
-            .where(ForecastSQL.site_uuid == site_uuid)
+            .where(ForecastSQL.location_uuid == site_uuid)
         ).one()
         assert num_forecasts_left == expected
 
@@ -137,7 +139,7 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
             sa.select(sa.func.count())
             .select_from(ForecastValueSQL)
             .join(ForecastSQL)
-            .where(ForecastSQL.site_uuid == site_uuid)
+            .where(ForecastSQL.location_uuid == site_uuid)
         ).one()
         assert num_values_left == expected * num_values
 
@@ -159,7 +161,7 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
 @pytest.mark.parametrize("do_delete", [True, False])
 def test_app_dry_run(session: Session, site, do_delete: bool):
     # We'll only consider this site.
-    site_uuid = site.site_uuid
+    site_uuid = site.location_uuid
 
     # Write some forecasts to the database for our site.
     num_forecasts = 10
@@ -189,7 +191,7 @@ def test_app_dry_run(session: Session, site, do_delete: bool):
     num_forecasts_left = session.scalars(
         sa.select(sa.func.count())
         .select_from(ForecastSQL)
-        .where(ForecastSQL.site_uuid == site_uuid)
+        .where(ForecastSQL.location_uuid == site_uuid)
     ).one()
     assert num_forecasts_left == expected
 
@@ -197,6 +199,6 @@ def test_app_dry_run(session: Session, site, do_delete: bool):
         sa.select(sa.func.count())
         .select_from(ForecastValueSQL)
         .join(ForecastSQL)
-        .where(ForecastSQL.site_uuid == site_uuid)
+        .where(ForecastSQL.location_uuid == site_uuid)
     ).one()
     assert num_values_left == expected * num_values

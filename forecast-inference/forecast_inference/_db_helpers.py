@@ -11,7 +11,7 @@ Row = Any
 
 def get_site_uuids(session: Session) -> list[str]:
     """Get all the sites."""
-    query = sa.select(models.SiteSQL.site_uuid)
+    query = sa.select(models.LocationSQL.location_uuid)
     result = session.execute(query).scalars().all()
     return [str(uuid) for uuid in result if uuid is not None]
 
@@ -26,12 +26,12 @@ def get_generation(
     """Get generation rows for a given time window and site uuids."""
     stmt = (
         sa.select(
-            models.GenerationSQL.site_uuid,
+            models.GenerationSQL.location_uuid,
             models.GenerationSQL.start_utc,
             models.GenerationSQL.end_utc,
             models.GenerationSQL.generation_power_kw,
         )
-        .where(models.GenerationSQL.site_uuid.in_(site_uuids))
+        .where(models.GenerationSQL.location_uuid.in_(site_uuids))
         .where(models.GenerationSQL.start_utc >= start_utc)
         .where(models.GenerationSQL.start_utc < end_utc)
     )
@@ -49,14 +49,14 @@ def get_forecasts(
     """Get forecast rows for a given time window, site uuids and horizon."""
     stmt = (
         sa.select(
-            models.ForecastSQL.site_uuid,
+            models.ForecastSQL.location_uuid,
             models.ForecastValueSQL.start_utc,
             models.ForecastValueSQL.end_utc,
             models.ForecastValueSQL.forecast_power_kw,
         )
         .select_from(models.ForecastValueSQL)
         .join(models.ForecastSQL)
-        .where(models.ForecastSQL.site_uuid.in_(site_uuids))
+        .where(models.ForecastSQL.location_uuid.in_(site_uuids))
         .where(models.ForecastValueSQL.horizon_minutes == horizon_minutes)
         .where(models.ForecastValueSQL.start_utc >= start_utc)
         .where(models.ForecastValueSQL.start_utc < end_utc)

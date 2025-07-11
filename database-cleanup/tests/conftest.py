@@ -2,7 +2,7 @@ import os
 
 import pytest
 import sqlalchemy as sa
-from pvsite_datamodel.sqlmodels import Base, SiteSQL
+from pvsite_datamodel.sqlmodels import Base, LocationSQL
 from sqlalchemy.orm import Session
 from testcontainers.postgres import PostgresContainer
 
@@ -31,7 +31,7 @@ def fill_db(engine):
         for i in range(num_clients):
             session.commit()
             for j in range(num_sites):
-                session.add(SiteSQL(ml_id=j + num_sites * i))
+                session.add(LocationSQL(ml_id=j + num_sites * i))
                 session.commit()
 
 
