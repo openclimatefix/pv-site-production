@@ -169,6 +169,12 @@ def _run_model_and_save_for_one_pv(
     help="Set the python logging log level",
     show_default=True,
 )
+@click.option(
+    "--raise-on-failure",
+    is_flag=True,
+    default=False,
+    help="Exit with an error if any PV site processing fails.",
+)
 def main(
     config_path: pathlib.Path,
     timestamp: dt.datetime | None,
@@ -176,6 +182,7 @@ def main(
     write_to_db: bool,
     round_date_to_minutes: int | None,
     no_print_to_stdout: bool,
+    raise_on_failure: bool,
     log_level: str,
 ):
     """Main function"""
@@ -251,9 +258,13 @@ def main(
     num_errors = len(pv_ids) - num_successes
 
     _log.info(
-        f"Ran successfully on {num_successes} PV sites ({num_successes / len(pv_ids) * 100:.1f} %) "
+        f"Ran successfully on {num_successes} PV sites ({num_successes / len(pv_ids) * 100:.1f}%)"
     )
-    _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f} %)")
+    _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f}%)")
+
+    # If requested, raise if any site failed
+    if raise_on_failure and num_errors > 0:
+        raise RuntimeError(f"{num_errors} PV site(s) failed out of {len(pv_ids)}")
 
     # Raise an error if all forecasts fail
     if num_successes == 0:
