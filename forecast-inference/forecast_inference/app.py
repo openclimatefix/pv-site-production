@@ -258,18 +258,17 @@ def main(
     num_errors = len(pv_ids) - num_successes
 
     _log.info(
-        f"Ran successfully on {num_successes} PV sites ({num_successes / len(pv_ids) * 100:.1f} %) "
+        f"Ran successfully on {num_successes} PV sites ({num_successes / len(pv_ids) * 100:.1f}%)"
     )
-    _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f} %)")
+    _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f}%)")
 
     # If requested, raise if any site failed
     if raise_on_failure and num_errors > 0:
-       raise RuntimeError(f"{num_errors} PV site(s) failed out of {len(pv_ids)}")
+        raise RuntimeError(f"{num_errors} PV site(s) failed out of {len(pv_ids)}")
 
-   # Old default behavior: only fail if everything failed
+    # Old default behavior: only fail if everything failed
     if not raise_on_failure and num_successes == 0:
-       raise RuntimeError("All forecasts failed")
-   
+        raise RuntimeError("All forecasts failed")
 
 
 if __name__ == "__main__":
