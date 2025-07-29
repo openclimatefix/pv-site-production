@@ -266,7 +266,7 @@ def main(
     if raise_on_failure and num_errors > 0:
         raise RuntimeError(f"{num_errors} PV site(s) failed out of {len(pv_ids)}")
 
-    # Old default behavior: only fail if everything failed
+    # Old default behavior
     if not raise_on_failure and num_successes == 0:
         raise RuntimeError("All forecasts failed")
 
