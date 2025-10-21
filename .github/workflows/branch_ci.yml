@@ -13,10 +13,11 @@ permissions:
 
 jobs:
   branch-ci:
-    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@main
+    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@work-dire
     secrets: inherit
     with:
       enable_linting: true
       enable_typechecking: false
       tests_folder: "forecast-inference/tests"
-      test_python_versions: '["3.12"]'
+      test_python_versions: '["3.11"]'
+      working_directory: "forecast-inference"
