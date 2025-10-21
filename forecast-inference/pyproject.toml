@@ -51,9 +51,14 @@ dirty_template = "{tag}"
 [tool.setuptools.packages.find]
 exclude = ["notebook*"]
 
+[tool.ruff]
+exclude = ["notebooks"]
+
 # --- TESTING CONFIGURATION --- #
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+
 
 
