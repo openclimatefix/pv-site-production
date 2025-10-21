@@ -21,3 +21,4 @@ jobs:
       tests_folder: "tests"
       test_python_versions: '["3.11"]'
       working_directory: "forecast-inference"
+      containerfile: "infrastructure/infrastructure/Dockerfile.forecast-inference"
