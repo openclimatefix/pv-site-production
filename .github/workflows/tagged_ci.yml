@@ -14,3 +14,5 @@ jobs:
   tagged-ci:
     uses: openclimatefix/.github/.github/workflows/tagged_ci.yml@main
     secrets: inherit
+    with:
+      containerfile: "infrastructure/Dockerfile.forecast-inference"
