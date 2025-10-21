@@ -14,14 +14,3 @@ jobs:
       - name: Build
         run: make build-database-cleanup
 
-  build-forecast-inference-docker:
-    runs-on: ubuntu-latest
-    steps:
-
-      - name: Check out the repo
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Build
-        run: make build-forecast-inference
