@@ -6,37 +6,6 @@ on:
     types: [opened, reopened]
 
 jobs:
-  test_and_lint_forecast_inference:
-    name: Run tests and lint - forecast-inference
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install linux dependencies
-        run: sudo apt-get install -y libgeos-dev
-
-      - name: Check out the repo
-        uses: actions/checkout@v2
-
-      - name: Install poetry
-        run: pipx install poetry==1.3.2
-
-      - name: Install python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          cache: poetry
-
-      - name: Install and configure poetry
-        run: cd forecast-inference && poetry install
-
-      - name: Run tests
-        run: cd forecast-inference && make test
-
-      - name: Run lint
-        run: cd forecast-inference && make lint
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-
   test_and_lint_database_cleanup:
     name: Run tests and lint - database-cleanup
     runs-on: ubuntu-latest

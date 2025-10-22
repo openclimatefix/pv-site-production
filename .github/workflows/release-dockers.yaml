@@ -10,18 +10,6 @@ jobs:
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-  release-forecast-inference-docker:
-    needs: bump-version
-    uses: openclimatefix/.github/.github/workflows/push-docker.yml@v1.2.0
-    with:
-      image_base_name: pvsite_forecast
-      docker_file: infrastructure/Dockerfile.forecast-inference
-      tag_value: ${{ needs.bump-version.outputs.new_ver }}
-      checkout_submodules: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-
   release-database-cleanup-docker:
     needs: bump-version
     uses: openclimatefix/.github/.github/workflows/push-docker.yml@v1.2.0

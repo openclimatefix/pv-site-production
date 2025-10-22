@@ -1,54 +1,64 @@
-[tool.poetry]
-name = "forecast-inference"
-version = "1.1.1"
-description = ""
-authors = ["Peter Dudfield"]
-packages = [{include = "forecast_inference"}]
-
-[tool.poetry.dependencies]
-python = ">=3.11,<3.12"
-pandas = "^2.2.3"
-s3fs = "^2022.11.0"
-python-dotenv = "^0.21.1"
-sqlalchemy = ">=2.0"
-pv-site-prediction = ">=0.1.19"
-pvsite-datamodel = "1.2.0"
-sentry-sdk = "^2.1.1"
-setuptools = "^75.1.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest-cov = "^4.0.0"
-black = {version = "^22.12.0", extras = ["jupyter"]}
-isort = "^5.11.4"
-flake8 = "^6.0.0"
-ipython = "^8.8.0"
-pydocstyle = "^6.3.0"
-testcontainers = "^3.7.1"
-pandas-stubs = "^2.0.0.230412"
-types-pyyaml = "^6.0.12.3"
-mypy = "^1.2.0"
-freezegun = "^1.2.2"
-jupyter = "^1.0.0"
-altair = "^4.2.2"
-setuptools = "^75.1.0"
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=67", "wheel", "setuptools-git-versioning>=2.0,<3"]
+build-backend = "setuptools.build_meta"
 
-[tool.black]
-line-length = 100
+[project]
+name = "forecast_inference"
+description = "App for running forecast inference for pv sites"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = {text = "MIT License"}
+authors = [
+    {name = "Open Climate Fix", email = "info@openclimatefix.org"},
+]
+dependencies = [
+    "pandas==2.2.3",
+    "s3fs==2022.11.0",
+    "python-dotenv==0.21.1",
+    "sqlalchemy",
+    "pv-site-prediction==0.1.20",
+    "pvsite-datamodel==1.2.0",
+    "sentry-sdk==2.1.1",
+    "pytest",
+    "freezegun",
+    "testcontainers",
+    "ruff",
+]
+dynamic = ["version"]
 
-[tool.isort]
-profile = 'black'
-line_length = 100
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+"flake8",
+"pydocstyle",
+"pandas-stubs",
+"types-pyyaml",
+"mypy",
+"jupyter",
+"altair",
+]
 
-[tool.pydocstyle]
-convention = 'google'
-add-ignore = 'D200,D202,D210,D212,D415,D105'
+[project.urls]
+repository = "https://github.com/openclimatefix/pv-site-production"
 
-[tool.mypy]
-check_untyped_defs = true
-ignore_missing_imports = true
-warn_unused_ignores = true
-plugins = 'sqlalchemy.ext.mypy.plugin'
+[tool.setuptools-git-versioning]
+enabled = true
+template = "{tag}"
+dirty_template = "{tag}"
+
+
+[tool.setuptools.packages.find]
+exclude = ["notebook*"]
+
+[tool.ruff]
+exclude = ["notebooks"]
+
+# --- TESTING CONFIGURATION --- #
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+
+
+

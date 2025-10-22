@@ -1,29 +1,45 @@
-FROM python:3.11-slim
+# --- Dependency builder image --- #
+FROM python:3.11-slim-bookworm AS build-deps
 
-# install extra requirements
-RUN apt-get clean
-RUN apt-get update -y
-RUN apt-get install gcc g++ libgeos-dev -y git -y pkg-config -y libhdf5-dev
+# Install build tools
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN apt-get update && apt-get install -y git
 
-RUN pip install -U pip poetry
-
-# set working directory
+# Project configuration
 WORKDIR /app
+COPY forecast-inference/pyproject.toml /app/pyproject.toml
+COPY forecast-inference/README.md /app/README.md
+COPY forecast-inference/aws_config.yaml /app/configuration.yaml
 
-# copy files requirements
-COPY ./forecast-inference/pyproject.toml /app/pyproject.toml
-COPY ./forecast-inference/poetry.lock /app/poetry.lock
-COPY ./forecast-inference/aws_config.yaml /app/configuration.yaml
+# UV settings
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_NO_CACHE=1 \
+    UV_LINK_MODE=copy
 
-# Install dependencies
-RUN poetry install --without dev --no-root
+# Pre-install dependencies
+RUN mkdir src && \
+    uv sync --no-dev --no-install-project --no-editable
 
-# Install the package itself in a different step because it changes more often than the
-# dependencies.
-COPY ./forecast-inference/forecast_inference /app/forecast_inference
-RUN poetry install --only-root
+# Optional: clean up large test dirs (e.g., pandas)
+RUN rm -rf /app/.venv/lib/python3.11/site-packages/**/tests
 
+# --- App builder image --- #
+FROM build-deps AS build-app
+
+# Install full project
+COPY forecast-inference /app
+COPY .git/ /app
+RUN uv sync --no-dev --no-editable
+
+# --- Final runtime image --- #
+FROM python:3.11-slim-bookworm
+
+WORKDIR /app
+COPY --from=build-app --chown=app:app /app/.venv /app/.venv
+COPY --from=build-app /app /app
+
+# Entrypoint
 # Note that we round down the time at which we make the prediction to 15 minutes.
 # This means that if we don't want predictions to be (up-to) 15 minute late,
 # we need to make sure this runs *right after* these "round" times.
-ENTRYPOINT ["poetry", "run", "python", "forecast_inference/app.py", "-c", "configuration.yaml", "--write-to-db", "--round-date-to-minutes", "15", "--log-level", "info"]
+ENTRYPOINT ["/app/.venv/bin/python", "-m", "forecast_inference.app", "-c", "configuration.yaml", "--write-to-db", "--round-date-to-minutes", "15", "--log-level", "info"]
