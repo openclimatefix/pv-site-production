@@ -7,9 +7,9 @@ RUN apt-get update && apt-get install -y git
 
 # Project configuration
 WORKDIR /app
-COPY ./forecast-inference/pyproject.toml /app/pyproject.toml
-COPY ./forecast-inference/README.md /app/README.md
-COPY ./forecast-inference/aws_config.yaml /app/configuration.yaml
+COPY forecast-inference/pyproject.toml /app/pyproject.toml
+COPY forecast-inference/README.md /app/README.md
+COPY forecast-inference/aws_config.yaml /app/configuration.yaml
 
 # UV settings
 ENV UV_COMPILE_BYTECODE=1 \
@@ -21,14 +21,14 @@ RUN mkdir src && \
     uv sync --no-dev --no-install-project --no-editable
 
 # Optional: clean up large test dirs (e.g., pandas)
-RUN rm -rf /app/.venv/lib/python3.12/site-packages/**/tests
+RUN rm -rf /app/.venv/lib/python3.11/site-packages/**/tests
 
 # --- App builder image --- #
 FROM build-deps AS build-app
 
 # Install full project
-COPY ./forecast-inference /app
-COPY ./.git /app/.git
+COPY forecast-inference /app
+COPY .git /app/.git
 RUN uv sync --no-dev --no-editable
 
 # --- Final runtime image --- #
