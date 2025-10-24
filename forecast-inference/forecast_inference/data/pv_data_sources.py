@@ -61,6 +61,7 @@ class DbPvDataSource(PvDataSource):
         pv_ids: list[PvId] | PvId,
         start_ts: Timestamp | None = None,
         end_ts: Timestamp | None = None,
+        resample_15_mins: bool = True,
     ) -> xr.Dataset:
         """Get a slice of data"""
 
@@ -160,6 +161,16 @@ class DbPvDataSource(PvDataSource):
         # (unique) PV.
         if was_scalar:
             da = da.isel(id=0)
+
+        if resample_15_mins:
+            # resample to 15 min intervals
+            da = da.resample(ts="15T").mean()
+
+            # use interpolate_na to interpolate nans with a limit of 1
+            da = da.interpolate_na(dim="ts", method="linear", limit=1)
+
+            # make sure ths dims are in (id, ts)
+            da = da.transpose("id", "ts")
 
         return da
 

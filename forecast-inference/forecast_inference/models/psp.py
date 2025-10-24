@@ -10,6 +10,7 @@ from psp.serialization import load_model
 
 from forecast_inference.utils.imports import instantiate
 from forecast_inference.utils.profiling import profile
+from forecast_inference.data.nwp import load_nwp_and_refactor
 
 _log = logging.getLogger(__name__)
 
@@ -19,6 +20,10 @@ def get_model(config: dict[str, Any], pv_data_source: PvDataSource) -> PvSiteMod
 
     with profile(f'Loading model: {config["model_path"]}'):
         model = load_model(config["model_path"])
+
+    # refactor and download nwp data
+    load_nwp_and_refactor(config["nwp"]["args"][0], "nwp.nc")
+    config["nwp"]["args"][0] = "nwp.nc"
 
     with profile(f'Getting NWP data: {config["nwp"]}'):
         nwp_data_sources = instantiate(**config["nwp"])
