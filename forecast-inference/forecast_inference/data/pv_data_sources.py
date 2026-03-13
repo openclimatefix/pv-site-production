@@ -169,7 +169,7 @@ class DbPvDataSource(PvDataSource):
             query = (
                 session.query(LocationSQL.location_uuid)
                 .where(LocationSQL.country == "uk")
-                .where(LocationSQL.active == True)
+                .where(LocationSQL.active)
                     )
             site_uuids = [str(row.location_uuid) for row in query]
         _log.debug("%i site_uuids from DB", len(site_uuids))
