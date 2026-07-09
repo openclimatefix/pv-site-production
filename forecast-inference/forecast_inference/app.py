@@ -2,6 +2,7 @@
 Apply the model to the PVs in the database and note the results.
 """
 
+import asyncio
 import datetime as dt
 import importlib.metadata
 import logging
@@ -16,10 +17,11 @@ import sentry_sdk
 from psp.models.base import PvSiteModel
 from psp.typings import PvId, Timestamp, X
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL
 
 from forecast_inference.data.nwp_data_sources import download_and_add_osgb_to_nwp_data_source
 from forecast_inference.data.pv_data_sources import DbPvDataSource
+from forecast_inference.save import build_dp_location_map, save_to_dataplatform
 from forecast_inference.utils.config import load_config
 from forecast_inference.utils.imports import import_from_module
 from forecast_inference.utils.profiling import profile
@@ -46,6 +48,25 @@ sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")
 sentry_sdk.set_tag("version", version)
 
 
+def _get_site_metadata(database_connection: DatabaseConnection) -> dict[str, dict]:
+    """Fetch client_location_name, capacity_kw, latitude, longitude for all UK sites.
+
+    Returns a mapping of pv_id (location_uuid str) to a metadata dict.
+    A single DB query is made so the per-PV loop has O(1) lookups.
+    """
+    with database_connection.get_session() as session:
+        sites = session.query(LocationSQL).where(LocationSQL.country == "uk").all()
+        return {
+            str(site.location_uuid): {
+                "client_location_name": site.client_location_name,
+                "capacity_kw": site.capacity_kw,
+                "latitude": site.latitude,
+                "longitude": site.longitude,
+            }
+            for site in sites
+        }
+
+
 def _run_model_and_save_for_one_pv(
     database_connection: DatabaseConnection,
     model: PvSiteModel,
@@ -53,9 +74,16 @@ def _run_model_and_save_for_one_pv(
     timestamp: Timestamp,
     write_to_db: bool,
     print_to_stdout: bool,
+    save_to_data_platform: bool = False,
+    site_meta: dict | None = None,
+    dp_location_map: dict[str, str] | None = None,
 ) -> bool:
     """
     Run model and save to database for one PV.
+
+    When save_to_data_platform is True, also pushes the forecast to the Data Platform
+    after a successful DB write. site_meta must contain client_location_name, capacity_kw,
+    latitude, and longitude for the given pv_id.
 
     Return:
     ------
@@ -113,6 +141,22 @@ def _run_model_and_save_for_one_pv(
         print(f'PV Site = "{pv_id}"')
         for row in rows:
             print(f" | {row['start_utc']}" f" | {row['end_utc']}" f" | {row['forecast_power_kw']}")
+
+    # Optionally push to the Data Platform
+    if save_to_data_platform and site_meta is not None:
+        _log.info(f"Saving to Data Platform for pv_id={pv_id}...")
+        asyncio.run(
+            save_to_dataplatform(
+                rows=rows,
+                client_location_name=site_meta.get("client_location_name") or pv_id,
+                model_tag="pv-site-production",
+                init_time_utc=timestamp,
+                capacity_kw=site_meta.get("capacity_kw"),
+                latitude=site_meta.get("latitude"),
+                longitude=site_meta.get("longitude"),
+                location_map=dp_location_map,
+            )
+        )
 
     return True
 
@@ -242,6 +286,25 @@ def main(
         pv_ids = pv_ids[:max_pvs]
         _log.info(f"Keeping only {len(pv_ids)} sites")
 
+    # Read Data Platform flag
+    save_to_dp = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
+
+    # Pre-fetch site metadata (single DB query — avoids per-PV round-trips)
+    site_metadata = _get_site_metadata(database_connection)
+    _log.info(f"Pre-fetched metadata for {len(site_metadata)} sites")
+
+    # Pre-fetch DP location map once (avoids one gRPC call per site)
+    dp_location_map: dict[str, str] | None = None
+    if save_to_dp:
+        try:
+            dp_location_map = asyncio.run(build_dp_location_map())
+            _log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
+        except Exception:
+            _log.warning(
+                "Failed to pre-fetch DP location map — will fall back to per-site lookup.",
+                exc_info=True,
+            )
+
     num_successes = 0
     for pv_id in pv_ids:
         success = _run_model_and_save_for_one_pv(
@@ -251,6 +314,9 @@ def main(
             timestamp=timestamp,
             write_to_db=write_to_db,
             print_to_stdout=not write_to_db and not no_print_to_stdout,
+            save_to_data_platform=save_to_dp,
+            site_meta=site_metadata.get(pv_id),
+            dp_location_map=dp_location_map,
         )
         if success:
             num_successes += 1
