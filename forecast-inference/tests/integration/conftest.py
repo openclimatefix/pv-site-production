@@ -12,7 +12,6 @@ from unittest.mock import patch
 
 import betterproto
 import pytest
-from freezegun.api import real_datetime
 from testcontainers.core.container import DockerContainer
 from testcontainers.postgres import PostgresContainer
 
