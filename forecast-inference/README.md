@@ -24,6 +24,7 @@ Need to set
 - OCF_ENVIRONMENT
 - OCF_PV_DB_URL
 - NWP_ZARR_PATH
+- SAVE_TO_DATA_PLATFORM
 
 ## Development
 
