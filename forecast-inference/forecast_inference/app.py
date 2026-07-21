@@ -21,7 +21,11 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQ
 
 from forecast_inference.data.nwp_data_sources import download_and_add_osgb_to_nwp_data_source
 from forecast_inference.data.pv_data_sources import DbPvDataSource
-from forecast_inference.save import build_dp_location_map, save_to_dataplatform
+from forecast_inference.save import (
+    build_dp_location_map,
+    get_dataplatform_client,
+    save_to_dataplatform,
+)
 from forecast_inference.utils.config import load_config
 from forecast_inference.utils.imports import import_from_module
 from forecast_inference.utils.profiling import profile
@@ -151,9 +155,9 @@ def _run_model_and_save_for_one_pv(
                 client_location_name=site_meta["client_location_name"],
                 model_tag="pv-site-production",
                 init_time_utc=timestamp,
-                capacity_kw=site_meta.get("capacity_kw"),
-                latitude=site_meta.get("latitude"),
-                longitude=site_meta.get("longitude"),
+                capacity_kw=site_meta["capacity_kw"],
+                latitude=site_meta["latitude"],
+                longitude=site_meta["longitude"],
                 location_map=dp_location_map,
             )
         )
@@ -298,7 +302,12 @@ def main(
     dp_location_map: dict[str, str] | None = None
     if save_to_dp:
         try:
-            dp_location_map = asyncio.run(build_dp_location_map())
+
+            async def _fetch():
+                async with get_dataplatform_client() as client:
+                    return await build_dp_location_map(client)
+
+            dp_location_map = asyncio.run(_fetch())
             log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
         except Exception:
             log.warning(

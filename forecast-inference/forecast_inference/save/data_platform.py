@@ -47,20 +47,27 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
         channel.close()
 
 
-async def fetch_dp_location_map(client: DataPlatformClient) -> dict[str, str]:
-    """Fetch all locations from the Data Platform.
+async def fetch_dp_location_map(
+    client: DataPlatformClient,
+    location_type: dp.LocationType = dp.LocationType.SITE,
+) -> dict[str, str]:
+    """Fetch locations from the Data Platform filtered by location type.
 
     Returns a name → UUID map. Pre-fetching avoids separate list_locations calls
     for every forecast save.
     """
-    resp = await client.list_locations(dp.ListLocationsRequest())
+    resp = await client.list_locations(
+        dp.ListLocationsRequest(location_type_filter=[location_type])
+    )
     return {loc.location_name: loc.location_uuid for loc in resp.locations}
 
 
-async def build_dp_location_map() -> dict[str, str]:
-    """Async wrapper: open a channel, fetch the location map, close."""
-    async with get_dataplatform_client() as client:
-        return await fetch_dp_location_map(client)
+async def build_dp_location_map(
+    client: DataPlatformClient,
+    location_type: dp.LocationType = dp.LocationType.SITE,
+) -> dict[str, str]:
+    """Fetch the location map from the Data Platform using the provided client."""
+    return await fetch_dp_location_map(client, location_type=location_type)
 
 
 async def resolve_target_uuid(
@@ -77,16 +84,15 @@ async def resolve_target_uuid(
     """
     client_location_name = _sanitize(client_location_name)
     if location_map is None:
-        resp = await client.list_locations(dp.ListLocationsRequest())
-        location_map = {loc.location_name: loc.location_uuid for loc in resp.locations}
+        location_map = await fetch_dp_location_map(client)
 
-    if client_location_name in location_map:
-        target_uuid = location_map[client_location_name]
+    target_uuid = location_map.get(client_location_name)
+    if target_uuid:
         log.info(f"Mapped client location '{client_location_name}' to DP UUID {target_uuid}")
-        return target_uuid
+    else:
+        log.warning(f"DP location '{client_location_name}' not found — will create it.")
 
-    log.warning(f"DP location '{client_location_name}' not found — will create it.")
-    return None
+    return target_uuid
 
 
 async def get_location_capacity(
@@ -109,8 +115,8 @@ async def create_new_location(
     client: DataPlatformClient,
     client_location_name: str,
     capacity_kw: float,
-    latitude: float | None,
-    longitude: float | None,
+    latitude: float,
+    longitude: float,
     init_time_utc: datetime,
     location_type: dp.LocationType = dp.LocationType.SITE,
     energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
@@ -121,8 +127,7 @@ async def create_new_location(
         "Attempting to create it...",
     )
 
-    lon, lat = longitude or 0.0, latitude or 0.0
-    wkt = f"POINT ({lon} {lat})"
+    wkt = f"POINT ({longitude} {latitude})"
     capacity_watts = int(capacity_kw * 1000)
     client_location_name = _sanitize(client_location_name)
 
@@ -140,7 +145,9 @@ async def create_new_location(
         return create_resp.location_uuid
     except Exception as create_error:
         log.error(f"Failed to create location: {create_error}")
-        raise
+        raise RuntimeError(
+            f"Failed to create location for '{client_location_name}': {create_error}"
+        ) from create_error
 
 
 async def create_forecaster_if_not_exists(
@@ -229,9 +236,9 @@ async def save_forecast_to_dataplatform(
     model_tag: str,
     init_time_utc: datetime,
     client: DataPlatformClient,
-    capacity_kw: float | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
+    capacity_kw: float,
+    latitude: float,
+    longitude: float,
     location_map: dict[str, str] | None = None,
 ) -> None:
     """Save forecast to the Data Platform."""
@@ -286,7 +293,7 @@ async def save_forecast_to_dataplatform(
         target_uuid_str = await create_new_location(
             client,
             client_location_name,
-            capacity_kw or 0.0,
+            capacity_kw,
             latitude,
             longitude,
             init_time_utc_dt,
@@ -341,9 +348,9 @@ async def save_to_dataplatform(
     client_location_name: str,
     model_tag: str,
     init_time_utc: datetime,
-    capacity_kw: float | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
+    capacity_kw: float,
+    latitude: float,
+    longitude: float,
     location_map: dict[str, str] | None = None,
 ) -> None:
     """Save forecast to the Data Platform (opens its own gRPC channel)."""
