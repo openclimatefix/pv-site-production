@@ -6,8 +6,9 @@ import asyncio
 import contextlib
 import logging
 import os
+import re
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
@@ -68,7 +69,7 @@ async def resolve_target_uuid(
 
     Returns the UUID string if found, or None if the location does not exist yet.
     """
-    client_location_name = client_location_name.replace("-", "_").lower()
+    client_location_name = re.sub(r"[^a-z0-9_|]", "_", client_location_name.lower())
     if location_map is None:
         resp = await client.list_locations(dp.ListLocationsRequest())
         location_map = {loc.location_name: loc.location_uuid for loc in resp.locations}
@@ -117,7 +118,7 @@ async def create_new_location(
     lon, lat = longitude or 0.0, latitude or 0.0
     wkt = f"POINT ({lon} {lat})"
     capacity_watts = int(capacity_kw * 1000)
-    client_location_name = client_location_name.lower().replace("-", "_")
+    client_location_name = re.sub(r"[^a-z0-9_|]", "_", client_location_name.lower())
 
     try:
         create_req = dp.CreateLocationRequest(
@@ -245,10 +246,14 @@ async def save_forecast_to_dataplatform(
             else init_time_utc.tz_convert("UTC")
         ).to_pydatetime()
     else:
+        # Use pd.Timestamp as a bridge — .to_pydatetime() always returns a real
+        # datetime, not a FakeDatetime subclass produced by freeze_time.
         init_time_utc_dt = (
-            init_time_utc.replace(tzinfo=UTC) if init_time_utc.tzinfo is None
-            else init_time_utc.astimezone(UTC)
-        )
+            pd.Timestamp(init_time_utc)
+            .tz_localize("UTC" if init_time_utc.tzinfo is None else None)
+            if init_time_utc.tzinfo is None
+            else pd.Timestamp(init_time_utc).tz_convert("UTC")
+        ).to_pydatetime()
 
     log.info(
         "Starting DP save | "
