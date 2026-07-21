@@ -148,7 +148,7 @@ def _run_model_and_save_for_one_pv(
         asyncio.run(
             save_to_dataplatform(
                 rows=rows,
-                client_location_name=site_meta.get("client_location_name") or pv_id,
+                client_location_name=site_meta["client_location_name"],
                 model_tag="pv-site-production",
                 init_time_utc=timestamp,
                 capacity_kw=site_meta.get("capacity_kw"),

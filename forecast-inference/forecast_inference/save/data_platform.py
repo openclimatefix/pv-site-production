@@ -17,6 +17,12 @@ from grpclib.client import Channel
 
 log = logging.getLogger(__name__)
 
+
+def _sanitize(name: str) -> str:
+    """Sanitize location name to contain only DP-supported characters."""
+    return re.sub(r"[^a-z0-9_|]", "_", name.lower())
+
+
 # Keep this static so the adjuster and API keep working even if the app version changes.
 dp_forecaster_version = "1.4.0"
 
@@ -69,7 +75,7 @@ async def resolve_target_uuid(
 
     Returns the UUID string if found, or None if the location does not exist yet.
     """
-    client_location_name = re.sub(r"[^a-z0-9_|]", "_", client_location_name.lower())
+    client_location_name = _sanitize(client_location_name)
     if location_map is None:
         resp = await client.list_locations(dp.ListLocationsRequest())
         location_map = {loc.location_name: loc.location_uuid for loc in resp.locations}
@@ -118,7 +124,7 @@ async def create_new_location(
     lon, lat = longitude or 0.0, latitude or 0.0
     wkt = f"POINT ({lon} {lat})"
     capacity_watts = int(capacity_kw * 1000)
-    client_location_name = re.sub(r"[^a-z0-9_|]", "_", client_location_name.lower())
+    client_location_name = _sanitize(client_location_name)
 
     try:
         create_req = dp.CreateLocationRequest(
@@ -237,7 +243,7 @@ async def save_forecast_to_dataplatform(
         log.error("client_location_name is None/empty — cannot save")
         raise ValueError("client_location_name is required to save to the Data Platform")
 
-    client_location_name = client_location_name.lower()
+    client_location_name = _sanitize(client_location_name)
     energy_source = dp.EnergySource.SOLAR  # UK PV only
 
     if isinstance(init_time_utc, pd.Timestamp):
