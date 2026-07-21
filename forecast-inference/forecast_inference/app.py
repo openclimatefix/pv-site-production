@@ -30,7 +30,7 @@ logging.basicConfig(
     level=getattr(logging, os.getenv("LOGLEVEL", "INFO")),
     format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
 )
-_log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 # Get rid of the verbose logs
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
@@ -93,7 +93,7 @@ def _run_model_and_save_for_one_pv(
         try:
             pred = model.predict(X(pv_id=pv_id, ts=timestamp))
         except Exception:
-            _log.error(
+            log.error(
                 'There was an exception calling `model.predict` for pv_id="{pv_id}". Skipping.',
                 # Add the exception traceback.
                 exc_info=True,
@@ -144,7 +144,7 @@ def _run_model_and_save_for_one_pv(
 
     # Optionally push to the Data Platform
     if save_to_data_platform and site_meta is not None:
-        _log.info(f"Saving to Data Platform for pv_id={pv_id}...")
+        log.info(f"Saving to Data Platform for pv_id={pv_id}...")
         asyncio.run(
             save_to_dataplatform(
                 rows=rows,
@@ -157,6 +157,7 @@ def _run_model_and_save_for_one_pv(
                 location_map=dp_location_map,
             )
         )
+        log.info(f"Saving to Data Platform completed for pv_id={pv_id}")
 
     return True
 
@@ -238,7 +239,7 @@ def main(
     if timestamp is not None and round_date_to_minutes is not None:
         raise RuntimeError("You can not use both --date and --round-date-to-minutes")
 
-    _log.debug("Load the configuration file")
+    log.debug("Load the configuration file")
     # Typically the configuration will contain many placeholders pointing to environment variables.
     # We allow specifying them in a .env file. See the .env.dist for a list of expected variables.
     # Environment variables still have precedence.
@@ -256,11 +257,11 @@ def main(
                 microsecond=0,
             )
 
-    _log.info(f"Making predictions with now={timestamp}.")
+    log.info(f"Making predictions with now={timestamp}.")
 
     get_model = import_from_module(config["run_model_func"])
 
-    _log.debug("Connecting to pv database")
+    log.debug("Connecting to pv database")
     url = config["pv_db_url"]
 
     database_connection = DatabaseConnection(url, echo=False)
@@ -273,34 +274,34 @@ def main(
         )
 
     # Wrap into a PV data source for the models.
-    _log.info("Creating PV data source")
+    log.info("Creating PV data source")
     pv_data_source = DbPvDataSource(database_connection)
 
     with profile("Loading model"):
         model: PvSiteModel = get_model(config, pv_data_source)
 
     pv_ids = pv_data_source.list_pv_ids()
-    _log.info(f"Found {len(pv_ids)} sites")
+    log.info(f"Found {len(pv_ids)} sites")
 
     if max_pvs is not None:
         pv_ids = pv_ids[:max_pvs]
-        _log.info(f"Keeping only {len(pv_ids)} sites")
+        log.info(f"Keeping only {len(pv_ids)} sites")
 
     # Read Data Platform flag
     save_to_dp = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
     # Pre-fetch site metadata (single DB query — avoids per-PV round-trips)
     site_metadata = _get_site_metadata(database_connection)
-    _log.info(f"Pre-fetched metadata for {len(site_metadata)} sites")
+    log.info(f"Pre-fetched metadata for {len(site_metadata)} sites")
 
     # Pre-fetch DP location map once (avoids one gRPC call per site)
     dp_location_map: dict[str, str] | None = None
     if save_to_dp:
         try:
             dp_location_map = asyncio.run(build_dp_location_map())
-            _log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
+            log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
         except Exception:
-            _log.warning(
+            log.warning(
                 "Failed to pre-fetch DP location map — will fall back to per-site lookup.",
                 exc_info=True,
             )
@@ -323,10 +324,10 @@ def main(
 
     num_errors = len(pv_ids) - num_successes
 
-    _log.info(
+    log.info(
         f"Ran successfully on {num_successes} PV sites ({num_successes / len(pv_ids) * 100:.1f}%)"
     )
-    _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f}%)")
+    log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f}%)")
 
     # If requested, raise if any site failed
     if raise_on_failure and num_errors > 0:
