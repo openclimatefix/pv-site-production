@@ -8,6 +8,8 @@ import re
 
 import pytest
 
+from forecast_inference.save.data_platform import prepare_forecast_values
+
 
 def _sanitize(name: str) -> str:
     """Replicate the sanitization regex from data_platform.py."""
@@ -60,7 +62,6 @@ class TestPrepareForecastValues:
         return rows[0]["start_utc"]
 
     def _prepare(self, rows, init_time, capacity_watts=4000):
-        from forecast_inference.save.data_platform import prepare_forecast_values
         return prepare_forecast_values(rows, init_time, capacity_watts)
 
     def test_returns_correct_count(self, rows, init_time):

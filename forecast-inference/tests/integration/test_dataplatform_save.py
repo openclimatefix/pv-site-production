@@ -10,10 +10,12 @@ tests/unit/save/test_data_platform.py (no Docker required).
 
 import asyncio
 import datetime as dt
+import os
 import re
 
 import pytest
 from dp_sdk.ocf import dp
+from freezegun.api import real_datetime
 
 from forecast_inference.save.data_platform import (
     create_new_location,
@@ -45,7 +47,6 @@ async def _setup_test_location_in_dp(
     Checks for an existing location first so repeated test runs against the
     same container do not fail on duplicate name errors.
     """
-    import os
     os.environ["DATA_PLATFORM_HOST"] = host
     os.environ["DATA_PLATFORM_PORT"] = str(port)
 
@@ -76,7 +77,6 @@ async def _verify_forecast_in_dp(
     forecaster_name: str = "pv_site_production",
 ) -> dp.GetForecastAsTimeseriesResponse:
     """Query the DP and return the stored forecast timeseries."""
-    import os
     os.environ["DATA_PLATFORM_HOST"] = host
     os.environ["DATA_PLATFORM_PORT"] = str(port)
 
@@ -115,8 +115,6 @@ def forecast_rows():
     when the session-scoped freeze_time autouse fixture is active (freeze_time
     monkeypatches dt.datetime, but real_datetime bypasses it).
     """
-    from freezegun.api import real_datetime
-
     n = 10
     step = 15
     init_utc = real_datetime(2020, 1, 1, 12, 0, 0, tzinfo=dt.UTC)
@@ -239,7 +237,6 @@ def test_save_forecast_special_chars_location_name(
 
     # Confirm the sanitized name exists in DP
     async def _check():
-        import os
         os.environ["DATA_PLATFORM_HOST"] = host
         os.environ["DATA_PLATFORM_PORT"] = str(port)
         async with get_dataplatform_client() as client:
@@ -292,7 +289,6 @@ def test_location_reused_on_second_save(
 
     # Confirm only one location with this name in DP
     async def _check():
-        import os
         os.environ["DATA_PLATFORM_HOST"] = host
         os.environ["DATA_PLATFORM_PORT"] = str(port)
         async with get_dataplatform_client() as client:

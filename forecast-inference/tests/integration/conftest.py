@@ -9,7 +9,9 @@ import time
 from importlib.metadata import version
 from unittest.mock import patch
 
+import betterproto
 import pytest
+from freezegun.api import real_datetime
 from testcontainers.core.container import DockerContainer
 from testcontainers.postgres import PostgresContainer
 
@@ -26,9 +28,6 @@ def unfreeze_betterproto():
     We patch betterproto.__init__.datetime with the real datetime class for the
     duration of the integration test module.
     """
-    from freezegun.api import real_datetime
-    import betterproto
-
     with patch.object(betterproto, "datetime", real_datetime):
         yield
 
