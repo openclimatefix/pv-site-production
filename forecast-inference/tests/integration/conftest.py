@@ -5,6 +5,7 @@ Spins up a real Data Platform Docker container (and its backing Postgres)
 using testcontainers, exactly as site-forecast-app does.
 """
 
+import datetime as dt
 import time
 from importlib.metadata import version
 from unittest.mock import patch
@@ -18,17 +19,31 @@ from testcontainers.postgres import PostgresContainer
 
 @pytest.fixture(autouse=True, scope="module")
 def unfreeze_betterproto():
-    """Patch betterproto's datetime reference to use the real datetime class.
+    """Patch betterproto's datetime serialization and deserialization during freeze_time.
 
     The root conftest.py has a session-scoped autouse freeze_time fixture that
-    replaces the global datetime class with FakeDatetime. betterproto's internal
-    default_gen factory calls datetime() with no arguments which fails because
-    FakeDatetime requires a 'year' argument.
-
-    We patch betterproto.__init__.datetime with the real datetime class for the
-    duration of the integration test module.
+    replaces the global datetime class with FakeDatetime. When freezegun is active,
+    betterproto's internal default factories and type checks fail because FakeDatetime
+    requires arguments when instantiated.
     """
-    with patch.object(betterproto, "datetime", real_datetime):
+    orig_get_field_default = betterproto.Message._get_field_default
+    orig_postprocess = betterproto.Message._postprocess_single
+
+    def patched_get_field_default(self, field_name: str):
+        try:
+            return orig_get_field_default(self, field_name)
+        except TypeError:
+            return None
+
+    def patched_postprocess(self, wire_type, meta, field_name, value):
+        if meta.proto_type == betterproto.TYPE_MESSAGE:
+            cls = self._betterproto.cls_by_field.get(field_name)
+            if cls is not None and isinstance(cls, type) and issubclass(cls, dt.date):
+                return betterproto._Timestamp().parse(value).to_datetime()
+        return orig_postprocess(self, wire_type, meta, field_name, value)
+
+    with patch.object(betterproto.Message, "_get_field_default", patched_get_field_default), \
+         patch.object(betterproto.Message, "_postprocess_single", patched_postprocess):
         yield
 
 
