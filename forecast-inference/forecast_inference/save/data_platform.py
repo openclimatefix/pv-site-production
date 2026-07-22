@@ -47,38 +47,36 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
         channel.close()
 
 
+# Type returned per location from list_locations — includes uuid and capacity.
+LocationSummary = dp.ListLocationsResponseLocationSummary
+
+
 async def fetch_dp_location_map(
     client: DataPlatformClient,
     location_type: dp.LocationType = dp.LocationType.SITE,
-) -> dict[str, str]:
+) -> dict[str, LocationSummary]:
     """Fetch locations from the Data Platform filtered by location type.
 
-    Returns a name → UUID map. Pre-fetching avoids separate list_locations calls
-    for every forecast save.
+    Returns a name → LocationSummary map. The summary includes both the UUID and
+    effective_capacity_watts, so callers avoid a second get_location gRPC call.
+    Pre-fetching once avoids separate list_locations calls for every forecast save.
     """
     resp = await client.list_locations(
         dp.ListLocationsRequest(location_type_filter=[location_type])
     )
-    return {loc.location_name: loc.location_uuid for loc in resp.locations}
-
-
-async def build_dp_location_map(
-    client: DataPlatformClient,
-    location_type: dp.LocationType = dp.LocationType.SITE,
-) -> dict[str, str]:
-    """Fetch the location map from the Data Platform using the provided client."""
-    return await fetch_dp_location_map(client, location_type=location_type)
+    return {loc.location_name: loc for loc in resp.locations}
 
 
 async def resolve_target_uuid(
     client: DataPlatformClient,
     client_location_name: str,
-    location_map: dict[str, str] | None = None,
+    location_map: dict[str, LocationSummary] | None = None,
 ) -> str | None:
     """Look up the DP location UUID by name.
 
-    If a pre-fetched *location_map* (name → UUID) is supplied it is used directly,
-    avoiding an extra list_locations gRPC call. When None, the map is fetched on-demand.
+    If a pre-fetched *location_map* (name → LocationSummary) is supplied it is used
+    directly, avoiding an extra list_locations gRPC call. When None, the map is fetched
+    on-demand.
 
     Returns the UUID string if found, or None if the location does not exist yet.
     """
@@ -86,29 +84,15 @@ async def resolve_target_uuid(
     if location_map is None:
         location_map = await fetch_dp_location_map(client)
 
-    target_uuid = location_map.get(client_location_name)
-    if target_uuid:
-        log.info(f"Mapped client location '{client_location_name}' to DP UUID {target_uuid}")
-    else:
-        log.warning(f"DP location '{client_location_name}' not found — will create it.")
+    summary = location_map.get(client_location_name)
+    if summary:
+        log.info(
+            f"Mapped client location '{client_location_name}' to DP UUID {summary.location_uuid}"
+        )
+        return summary.location_uuid
 
-    return target_uuid
-
-
-async def get_location_capacity(
-    client: DataPlatformClient,
-    target_uuid_str: str,
-    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
-) -> int:
-    """Fetch effective capacity (watts) for an existing DP location."""
-    location = await client.get_location(
-        dp.GetLocationRequest(
-            location_uuid=target_uuid_str,
-            energy_source=energy_source,
-            include_geometry=False,
-        ),
-    )
-    return location.effective_capacity_watts
+    log.warning(f"DP location '{client_location_name}' not found — will create it.")
+    return None
 
 
 async def create_new_location(
@@ -239,7 +223,7 @@ async def save_forecast_to_dataplatform(
     capacity_kw: float,
     latitude: float,
     longitude: float,
-    location_map: dict[str, str] | None = None,
+    location_map: dict[str, LocationSummary] | None = None,
 ) -> None:
     """Save forecast to the Data Platform."""
     if not rows:
@@ -276,6 +260,9 @@ async def save_forecast_to_dataplatform(
         f"location_map_size={len(location_map) if location_map else None}",
     )
 
+    if location_map is None:
+        location_map = await fetch_dp_location_map(client)
+
     target_uuid_str, forecaster = await asyncio.gather(
         resolve_target_uuid(client, client_location_name, location_map),
         create_forecaster_if_not_exists(client=client, model_tag=model_tag),
@@ -301,14 +288,11 @@ async def save_forecast_to_dataplatform(
             energy_source=energy_source,
         )
         log.info(f"created location uuid={target_uuid_str}")
+        capacity_watts = int(capacity_kw * 1000)
     else:
         log.info(f"location already exists uuid={target_uuid_str}")
+        capacity_watts = location_map[client_location_name].effective_capacity_watts
 
-    capacity_watts = await get_location_capacity(
-        client=client,
-        target_uuid_str=target_uuid_str,
-        energy_source=energy_source,
-    )
     log.info(f"capacity_watts={capacity_watts:,}  ({capacity_watts / 1000:,.1f} kW)")
 
     if capacity_watts == 0:
@@ -343,26 +327,3 @@ async def save_forecast_to_dataplatform(
     log.info(f"Save complete for location={client_location_name!r}")
 
 
-async def save_to_dataplatform(
-    rows: list[dict],
-    client_location_name: str,
-    model_tag: str,
-    init_time_utc: datetime,
-    capacity_kw: float,
-    latitude: float,
-    longitude: float,
-    location_map: dict[str, str] | None = None,
-) -> None:
-    """Save forecast to the Data Platform (opens its own gRPC channel)."""
-    async with get_dataplatform_client() as client:
-        await save_forecast_to_dataplatform(
-            rows=rows,
-            client_location_name=client_location_name,
-            model_tag=model_tag,
-            init_time_utc=init_time_utc,
-            client=client,
-            capacity_kw=capacity_kw,
-            latitude=latitude,
-            longitude=longitude,
-            location_map=location_map,
-        )

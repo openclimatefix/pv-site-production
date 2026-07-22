@@ -163,6 +163,28 @@ class DbPvDataSource(PvDataSource):
 
         return da
 
+    def get_site_metadata(self) -> dict[str, dict]:
+        """Fetch client_location_name, capacity_kw, latitude, longitude for all active UK sites.
+
+        Returns a mapping of pv_id (location_uuid str) to a metadata dict.
+        """
+        with self._database_connection.get_session() as session:
+            query = (
+                session.query(LocationSQL)
+                .where(LocationSQL.country == "uk")
+                .where(LocationSQL.active)
+                .all()
+            )
+            return {
+                str(site.location_uuid): {
+                    "client_location_name": site.client_location_name,
+                    "capacity_kw": site.capacity_kw,
+                    "latitude": site.latitude,
+                    "longitude": site.longitude,
+                }
+                for site in query
+            }
+
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""
         with self._database_connection.get_session() as session:
