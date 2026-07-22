@@ -1,35 +1,63 @@
-[tool.poetry]
-name = "database-cleanup"
-version = "1.1.2"
-description = ""
-authors = ["Open Climate Fix"]
-packages = [{include = "database_cleanup"}]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-pvsite-datamodel = "1.2.0"
-click = "^8.1.3"
-sentry-sdk = "^2.1.1"
-setuptools = "^75.1.0"
-fsspec = "^2024.10.0"
-numpy = "1.26.4"
-s3fs = "^2024.10.0"
-
-[tool.poetry.group.dev.dependencies]
-black = "^23.1.0"
-ruff = "^0.0.255"
-ipython = "^8.11.0"
-pytest = "^7.2.2"
-pytest-cov = "^4.0.0"
-testcontainers = "^3.7.1"
-freezegun = "^1.2.2"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=67", "wheel", "setuptools-git-versioning>=2.0,<3"]
+build-backend = "setuptools.build_meta"
 
-[tool.black]
-line-length = 100
+[project]
+name = "database-cleanup"
+description = "App for running database cleanup for pv sites"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = {text = "MIT License"}
+authors = [
+    {name = "Open Climate Fix", email = "info@openclimatefix.org"},
+]
+dependencies = [
+    "pvsite-datamodel==1.2.0",
+    "click==8.1.3",
+    "sentry-sdk==2.1.1",
+    "setuptools==75.1.0",
+    "fsspec==2024.10.0",
+    "numpy==1.26.4",
+    "s3fs==2024.10.0",
+    "pytest==7.2.2",
+    "testcontainers==3.7.1",
+    "freezegun==1.2.2",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "black==23.1.0",
+    "ruff==0.0.255",
+    "pytest-cov==4.0.0",
+]
+
+[project.urls]
+repository = "https://github.com/openclimatefix/pv-site-production"
+
+[tool.setuptools-git-versioning]
+enabled = true
+template = "{tag}"
+dirty_template = "{tag}"
+
+
+[tool.setuptools.packages.find]
+exclude = ["notebook*"]
 
 [tool.ruff]
-line-length = 100
+exclude = ["notebooks"]
+
+# --- TESTING CONFIGURATION --- #
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests requiring Docker (deselect with '-m not integration')",
+]
+
+
+# --- DEPENDENCY SOURCES --- #
+
+[tool.uv.sources]
+dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.21.2/dp_sdk-0.21.2-py3-none-any.whl" }
