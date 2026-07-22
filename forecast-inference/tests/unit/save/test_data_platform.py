@@ -4,16 +4,9 @@ These tests require no Docker or network access — they test pure logic only.
 """
 
 import datetime as dt
-import re
-
 import pytest
 
-from forecast_inference.save.data_platform import prepare_forecast_values
-
-
-def _sanitize(name: str) -> str:
-    """Replicate the sanitization regex from data_platform.py."""
-    return re.sub(r"[^a-z0-9_|]", "_", name.lower())
+from forecast_inference.save.data_platform import _sanitize, prepare_forecast_values
 
 
 class TestSanitization:
