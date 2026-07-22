@@ -10,17 +10,17 @@ tests/unit/save/test_data_platform.py (no Docker required).
 
 import asyncio
 import datetime as dt
-import os
-import re
 
 import pytest
 from dp_sdk.ocf import dp
 from freezegun.api import real_datetime
 
 from forecast_inference.save.data_platform import (
+    DataPlatformClient,
+    _sanitize,
     create_new_location,
     get_dataplatform_client,
-    save_to_dataplatform,
+    save_forecast_to_dataplatform,
 )
 
 
@@ -29,14 +29,8 @@ from forecast_inference.save.data_platform import (
 # ---------------------------------------------------------------------------
 
 
-def _sanitize(name: str) -> str:
-    """Replicate the sanitization logic from data_platform.py."""
-    return re.sub(r"[^a-z0-9_|]", "_", name.lower())
-
-
 async def _setup_test_location_in_dp(
-    host: str,
-    port: int,
+    client: DataPlatformClient,
     site_name: str,
     capacity_kw: float,
     latitude: float,
@@ -47,59 +41,50 @@ async def _setup_test_location_in_dp(
     Checks for an existing location first so repeated test runs against the
     same container do not fail on duplicate name errors.
     """
-    os.environ["DATA_PLATFORM_HOST"] = host
-    os.environ["DATA_PLATFORM_PORT"] = str(port)
+    list_resp = await client.list_locations(dp.ListLocationsRequest())
+    sanitized = _sanitize(site_name)
+    for loc in list_resp.locations:
+        if loc.location_name == sanitized:
+            return loc.location_uuid
 
-    async with get_dataplatform_client() as client:
-        list_resp = await client.list_locations(dp.ListLocationsRequest())
-        sanitized = _sanitize(site_name)
-        for loc in list_resp.locations:
-            if loc.location_name == sanitized:
-                return loc.location_uuid
-
-        return await create_new_location(
-            client,
-            site_name,
-            capacity_kw,
-            latitude=latitude,
-            longitude=longitude,
-            init_time_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
-            location_type=dp.LocationType.SITE,
-        )
+    return await create_new_location(
+        client,
+        site_name,
+        capacity_kw,
+        latitude=latitude,
+        longitude=longitude,
+        init_time_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
+        location_type=dp.LocationType.SITE,
+    )
 
 
 async def _verify_forecast_in_dp(
-    host: str,
-    port: int,
+    client: DataPlatformClient,
     location_uuid: str,
     init_time: dt.datetime,
     forecast_end_time: dt.datetime,
     forecaster_name: str = "pv_site_production",
 ) -> dp.GetForecastAsTimeseriesResponse:
     """Query the DP and return the stored forecast timeseries."""
-    os.environ["DATA_PLATFORM_HOST"] = host
-    os.environ["DATA_PLATFORM_PORT"] = str(port)
+    list_resp = await client.list_forecasters(
+        dp.ListForecastersRequest(forecaster_names_filter=[forecaster_name])
+    )
+    assert len(list_resp.forecasters) > 0, (
+        f"No forecaster '{forecaster_name}' found in DP"
+    )
+    forecaster = list_resp.forecasters[0]
 
-    async with get_dataplatform_client() as client:
-        list_resp = await client.list_forecasters(
-            dp.ListForecastersRequest(forecaster_names_filter=[forecaster_name])
+    return await client.get_forecast_as_timeseries(
+        dp.GetForecastAsTimeseriesRequest(
+            location_uuid=location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=init_time - dt.timedelta(minutes=1),
+                end_timestamp_utc=forecast_end_time + dt.timedelta(minutes=1),
+            ),
+            forecaster=forecaster,
         )
-        assert len(list_resp.forecasters) > 0, (
-            f"No forecaster '{forecaster_name}' found in DP"
-        )
-        forecaster = list_resp.forecasters[0]
-
-        return await client.get_forecast_as_timeseries(
-            dp.GetForecastAsTimeseriesRequest(
-                location_uuid=location_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                time_window=dp.TimeWindow(
-                    start_timestamp_utc=init_time - dt.timedelta(minutes=1),
-                    end_timestamp_utc=forecast_end_time + dt.timedelta(minutes=1),
-                ),
-                forecaster=forecaster,
-            )
-        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -172,36 +157,37 @@ def test_save_forecast_to_dataplatform_integration(
     monkeypatch.setenv("DATA_PLATFORM_HOST", host)
     monkeypatch.setenv("DATA_PLATFORM_PORT", str(port))
 
-    # 1. Create location in DP
-    dp_location_uuid = asyncio.run(
-        _setup_test_location_in_dp(
-            host, port,
-            site_meta_clean["client_location_name"],
-            site_meta_clean["capacity_kw"],
-            site_meta_clean["latitude"],
-            site_meta_clean["longitude"],
-        )
-    )
-
-    # 2. Save forecast via our function
     init_time = forecast_rows[0]["start_utc"]
-    asyncio.run(
-        save_to_dataplatform(
-            rows=forecast_rows,
-            client_location_name=site_meta_clean["client_location_name"],
-            model_tag="pv-site-production",
-            init_time_utc=init_time,
-            capacity_kw=site_meta_clean["capacity_kw"],
-            latitude=site_meta_clean["latitude"],
-            longitude=site_meta_clean["longitude"],
-        )
-    )
-
-    # 3. Verify in DP
     forecast_end = forecast_rows[-1]["end_utc"]
-    resp = asyncio.run(
-        _verify_forecast_in_dp(host, port, dp_location_uuid, init_time, forecast_end)
-    )
+
+    async def _run():
+        async with get_dataplatform_client() as client:
+            # 1. Create location in DP
+            dp_location_uuid = await _setup_test_location_in_dp(
+                client,
+                site_meta_clean["client_location_name"],
+                site_meta_clean["capacity_kw"],
+                site_meta_clean["latitude"],
+                site_meta_clean["longitude"],
+            )
+
+            # 2. Save forecast via our function
+            await save_forecast_to_dataplatform(
+                rows=forecast_rows,
+                client_location_name=site_meta_clean["client_location_name"],
+                model_tag="pv-site-production",
+                init_time_utc=init_time,
+                client=client,
+                capacity_kw=site_meta_clean["capacity_kw"],
+                latitude=site_meta_clean["latitude"],
+                longitude=site_meta_clean["longitude"],
+            )
+
+            # 3. Verify in DP
+            resp = await _verify_forecast_in_dp(client, dp_location_uuid, init_time, forecast_end)
+        return resp
+
+    resp = asyncio.run(_run())
     assert len(resp.values) == len(forecast_rows)
 
 
@@ -222,30 +208,27 @@ def test_save_forecast_special_chars_location_name(
 
     init_time = forecast_rows[0]["start_utc"]
 
-    # Should not raise — the sanitizer handles all special chars
-    asyncio.run(
-        save_to_dataplatform(
-            rows=forecast_rows,
-            client_location_name=site_meta_special_chars["client_location_name"],
-            model_tag="pv-site-production",
-            init_time_utc=init_time,
-            capacity_kw=site_meta_special_chars["capacity_kw"],
-            latitude=site_meta_special_chars["latitude"],
-            longitude=site_meta_special_chars["longitude"],
-        )
-    )
-
-    # Confirm the sanitized name exists in DP
-    async def _check():
-        os.environ["DATA_PLATFORM_HOST"] = host
-        os.environ["DATA_PLATFORM_PORT"] = str(port)
+    async def _run():
         async with get_dataplatform_client() as client:
+            # Should not raise — the sanitizer handles all special chars
+            await save_forecast_to_dataplatform(
+                rows=forecast_rows,
+                client_location_name=site_meta_special_chars["client_location_name"],
+                model_tag="pv-site-production",
+                init_time_utc=init_time,
+                client=client,
+                capacity_kw=site_meta_special_chars["capacity_kw"],
+                latitude=site_meta_special_chars["latitude"],
+                longitude=site_meta_special_chars["longitude"],
+            )
+
+            # Confirm the sanitized name exists in DP
             resp = await client.list_locations(dp.ListLocationsRequest())
             names = [loc.location_name for loc in resp.locations]
             sanitized = _sanitize(site_meta_special_chars["client_location_name"])
             assert sanitized in names, f"Expected '{sanitized}' in DP locations: {names}"
 
-    asyncio.run(_check())
+    asyncio.run(_run())
 
 
 @pytest.mark.integration
@@ -262,39 +245,34 @@ def test_location_reused_on_second_save(
 
     init_time = forecast_rows[0]["start_utc"]
 
-    # Pre-create location
-    asyncio.run(
-        _setup_test_location_in_dp(
-            host, port,
-            site_meta_clean["client_location_name"],
-            site_meta_clean["capacity_kw"],
-            site_meta_clean["latitude"],
-            site_meta_clean["longitude"],
-        )
-    )
-
-    # Save twice — second call must not raise even though location already exists
-    for _ in range(2):
-        asyncio.run(
-            save_to_dataplatform(
-                rows=forecast_rows,
-                client_location_name=site_meta_clean["client_location_name"],
-                model_tag="pv-site-production",
-                init_time_utc=init_time,
-                capacity_kw=site_meta_clean["capacity_kw"],
-                latitude=site_meta_clean["latitude"],
-                longitude=site_meta_clean["longitude"],
-            )
-        )
-
-    # Confirm only one location with this name in DP
-    async def _check():
-        os.environ["DATA_PLATFORM_HOST"] = host
-        os.environ["DATA_PLATFORM_PORT"] = str(port)
+    async def _run():
         async with get_dataplatform_client() as client:
+            # Pre-create location
+            await _setup_test_location_in_dp(
+                client,
+                site_meta_clean["client_location_name"],
+                site_meta_clean["capacity_kw"],
+                site_meta_clean["latitude"],
+                site_meta_clean["longitude"],
+            )
+
+            # Save twice — second call must not raise even though location already exists
+            for _ in range(2):
+                await save_forecast_to_dataplatform(
+                    rows=forecast_rows,
+                    client_location_name=site_meta_clean["client_location_name"],
+                    model_tag="pv-site-production",
+                    init_time_utc=init_time,
+                    client=client,
+                    capacity_kw=site_meta_clean["capacity_kw"],
+                    latitude=site_meta_clean["latitude"],
+                    longitude=site_meta_clean["longitude"],
+                )
+
+            # Confirm only one location with this name in DP
             resp = await client.list_locations(dp.ListLocationsRequest())
             sanitized = _sanitize(site_meta_clean["client_location_name"])
             matching = [loc for loc in resp.locations if loc.location_name == sanitized]
             assert len(matching) == 1, f"Expected 1 location, found {len(matching)}"
 
-    asyncio.run(_check())
+    asyncio.run(_run())
