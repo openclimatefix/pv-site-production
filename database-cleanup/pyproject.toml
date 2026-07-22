@@ -13,34 +13,24 @@ authors = [
     {name = "Open Climate Fix", email = "info@openclimatefix.org"},
 ]
 dependencies = [
-    "pandas==2.2.3",
-    "s3fs==2022.11.0",
-    "python-dotenv==0.21.1",
-    "sqlalchemy",
-    "pv-site-prediction==0.1.20",
     "pvsite-datamodel==1.2.0",
+    "click==8.1.3",
     "sentry-sdk==2.1.1",
-    "betterproto>=2.0.0b7",
-    "grpclib>=0.4.7",
-    "dp-sdk",
-    "pytest",
-    "freezegun",
-    "testcontainers",
-    "ruff",
+    "setuptools==75.1.0",
+    "fsspec==2024.10.0",
+    "numpy==1.26.4",
+    "s3fs==2024.10.0",
+    "pytest==7.2.2",
+    "testcontainers==3.7.1",
+    "freezegun==1.2.2",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-    "black",
-    "isort",
-"flake8",
-"pydocstyle",
-"pandas-stubs",
-"types-pyyaml",
-"mypy",
-"jupyter",
-"altair",
+    "black==23.1.0",
+    "ruff==0.0.255",
+    "pytest-cov==4.0.0",
 ]
 
 [project.urls]
