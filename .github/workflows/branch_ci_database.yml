@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   branch-ci-database-cleanup:
-    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@fix-image-base-name
+    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@v2.0.1
     secrets: inherit
     with:
       enable_linting: true

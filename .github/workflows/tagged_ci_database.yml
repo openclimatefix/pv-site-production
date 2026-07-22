@@ -9,7 +9,7 @@ permissions:
   id-token: write
 jobs:
   tagged-ci-database-cleanup:
-    uses: openclimatefix/.github/.github/workflows/tagged_ci.yml@fix-image-base-name
+    uses: openclimatefix/.github/.github/workflows/tagged_ci.yml@v2.0.1
     secrets: inherit
     with:
       containerfile: "infrastructure/Dockerfile.database-cleanup"
