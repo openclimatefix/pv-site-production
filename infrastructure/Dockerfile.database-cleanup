@@ -10,7 +10,6 @@ WORKDIR /app
 COPY database-cleanup/pyproject.toml /app/pyproject.toml
 COPY database-cleanup/uv.lock /app/uv.lock
 COPY database-cleanup/README.md /app/README.md
-COPY database-cleanup/aws_config.yaml /app/configuration.yaml
 
 # UV settings
 ENV UV_COMPILE_BYTECODE=1 \
