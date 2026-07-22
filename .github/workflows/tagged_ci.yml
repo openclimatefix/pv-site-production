@@ -8,11 +8,14 @@ permissions:
   contents: read
   id-token: write
 jobs:
-  tagged-ci:
+  tagged-ci-forecast-inference:
     uses: openclimatefix/.github/.github/workflows/tagged_ci.yml@main
     secrets: inherit
     with:
       containerfile: "infrastructure/Dockerfile.forecast-inference"
 
-
-# TODO add database-cleanup job
+  tagged-ci-database-cleanup:
+    uses: openclimatefix/.github/.github/workflows/tagged_ci.yml@main
+    secrets: inherit
+    with:
+      containerfile: "infrastructure/Dockerfile.database-cleanup"
