@@ -11,6 +11,7 @@ permissions:
   packages: write
   contents: read
 
+
 jobs:
   branch-ci-database-cleanup:
     uses: openclimatefix/.github/.github/workflows/branch_ci.yml@fix-image-base-name
