@@ -13,4 +13,4 @@ jobs:
     secrets: inherit
     with:
       containerfile: "infrastructure/Dockerfile.database-cleanup"
-      image_base_name: "pvsite_database_cleanup"
+      image_base_name: "openclimatefix/pvsite_database_cleanup"

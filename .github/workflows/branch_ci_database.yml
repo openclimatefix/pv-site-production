@@ -22,5 +22,5 @@ jobs:
       tests_folder: tests
       containerfile: "infrastructure/Dockerfile.database-cleanup"
       working_directory: "database-cleanup"
-      image_base_name: "pvsite_database_cleanup"
+      image_base_name: "openclimatefix/pvsite_database_cleanup"
 
