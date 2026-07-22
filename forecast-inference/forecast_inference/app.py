@@ -2,6 +2,7 @@
 Apply the model to the PVs in the database and note the results.
 """
 
+import asyncio
 import datetime as dt
 import importlib.metadata
 import logging
@@ -20,6 +21,13 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
 from forecast_inference.data.nwp_data_sources import download_and_add_osgb_to_nwp_data_source
 from forecast_inference.data.pv_data_sources import DbPvDataSource
+from forecast_inference.save import (
+    DataPlatformClient,
+    LocationSummary,
+    fetch_dp_location_map,
+    get_dataplatform_client,
+    save_forecast_to_dataplatform,
+)
 from forecast_inference.utils.config import load_config
 from forecast_inference.utils.imports import import_from_module
 from forecast_inference.utils.profiling import profile
@@ -28,7 +36,7 @@ logging.basicConfig(
     level=getattr(logging, os.getenv("LOGLEVEL", "INFO")),
     format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
 )
-_log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 # Get rid of the verbose logs
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
@@ -46,16 +54,26 @@ sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")
 sentry_sdk.set_tag("version", version)
 
 
-def _run_model_and_save_for_one_pv(
+
+
+async def _run_model_and_save_for_one_pv(
     database_connection: DatabaseConnection,
     model: PvSiteModel,
     pv_id: PvId,
     timestamp: Timestamp,
     write_to_db: bool,
     print_to_stdout: bool,
+    save_to_data_platform: bool = False,
+    site_meta: dict | None = None,
+    client: DataPlatformClient | None = None,
+    dp_location_map: dict[str, LocationSummary] | None = None,
 ) -> bool:
     """
     Run model and save to database for one PV.
+
+    When save_to_data_platform is True, also pushes the forecast to the Data Platform
+    after a successful DB write. site_meta must contain client_location_name, capacity_kw,
+    latitude, and longitude for the given pv_id.
 
     Return:
     ------
@@ -65,7 +83,7 @@ def _run_model_and_save_for_one_pv(
         try:
             pred = model.predict(X(pv_id=pv_id, ts=timestamp))
         except Exception:
-            _log.error(
+            log.error(
                 'There was an exception calling `model.predict` for pv_id="{pv_id}". Skipping.',
                 # Add the exception traceback.
                 exc_info=True,
@@ -113,6 +131,22 @@ def _run_model_and_save_for_one_pv(
         print(f'PV Site = "{pv_id}"')
         for row in rows:
             print(f" | {row['start_utc']}" f" | {row['end_utc']}" f" | {row['forecast_power_kw']}")
+
+    # Optionally push to the Data Platform
+    if save_to_data_platform and site_meta is not None and client is not None:
+        log.info(f"Saving to Data Platform for pv_id={pv_id}...")
+        await save_forecast_to_dataplatform(
+            rows=rows,
+            client_location_name=site_meta["client_location_name"],
+            model_tag="pv-site-production",
+            init_time_utc=timestamp,
+            client=client,
+            capacity_kw=site_meta["capacity_kw"],
+            latitude=site_meta["latitude"],
+            longitude=site_meta["longitude"],
+            location_map=dp_location_map,
+        )
+        log.info(f"Saving to Data Platform completed for pv_id={pv_id}")
 
     return True
 
@@ -194,7 +228,7 @@ def main(
     if timestamp is not None and round_date_to_minutes is not None:
         raise RuntimeError("You can not use both --date and --round-date-to-minutes")
 
-    _log.debug("Load the configuration file")
+    log.debug("Load the configuration file")
     # Typically the configuration will contain many placeholders pointing to environment variables.
     # We allow specifying them in a .env file. See the .env.dist for a list of expected variables.
     # Environment variables still have precedence.
@@ -212,11 +246,11 @@ def main(
                 microsecond=0,
             )
 
-    _log.info(f"Making predictions with now={timestamp}.")
+    log.info(f"Making predictions with now={timestamp}.")
 
     get_model = import_from_module(config["run_model_func"])
 
-    _log.debug("Connecting to pv database")
+    log.debug("Connecting to pv database")
     url = config["pv_db_url"]
 
     database_connection = DatabaseConnection(url, echo=False)
@@ -229,38 +263,71 @@ def main(
         )
 
     # Wrap into a PV data source for the models.
-    _log.info("Creating PV data source")
+    log.info("Creating PV data source")
     pv_data_source = DbPvDataSource(database_connection)
 
     with profile("Loading model"):
         model: PvSiteModel = get_model(config, pv_data_source)
 
     pv_ids = pv_data_source.list_pv_ids()
-    _log.info(f"Found {len(pv_ids)} sites")
+    log.info(f"Found {len(pv_ids)} sites")
 
     if max_pvs is not None:
         pv_ids = pv_ids[:max_pvs]
-        _log.info(f"Keeping only {len(pv_ids)} sites")
+        log.info(f"Keeping only {len(pv_ids)} sites")
 
-    num_successes = 0
-    for pv_id in pv_ids:
-        success = _run_model_and_save_for_one_pv(
-            database_connection=database_connection,
-            model=model,
-            pv_id=pv_id,
-            timestamp=timestamp,
-            write_to_db=write_to_db,
-            print_to_stdout=not write_to_db and not no_print_to_stdout,
-        )
-        if success:
-            num_successes += 1
+    # Read Data Platform flag
+    save_to_dp = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
+
+    # Pre-fetch site metadata (single DB query via pv_data_source — avoids per-PV round-trips)
+    site_metadata = pv_data_source.get_site_metadata()
+    log.info(f"Pre-fetched metadata for {len(site_metadata)} sites")
+
+    async def _run_app():
+        num_successes = 0
+        if save_to_dp:
+            async with get_dataplatform_client() as client:
+                dp_location_map = await fetch_dp_location_map(client)
+                log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
+                for pv_id in pv_ids:
+                    success = await _run_model_and_save_for_one_pv(
+                        database_connection=database_connection,
+                        model=model,
+                        pv_id=pv_id,
+                        timestamp=timestamp,
+                        write_to_db=write_to_db,
+                        print_to_stdout=not write_to_db and not no_print_to_stdout,
+                        save_to_data_platform=True,
+                        site_meta=site_metadata.get(pv_id),
+                        client=client,
+                        dp_location_map=dp_location_map,
+                    )
+                    if success:
+                        num_successes += 1
+        else:
+            for pv_id in pv_ids:
+                success = await _run_model_and_save_for_one_pv(
+                    database_connection=database_connection,
+                    model=model,
+                    pv_id=pv_id,
+                    timestamp=timestamp,
+                    write_to_db=write_to_db,
+                    print_to_stdout=not write_to_db and not no_print_to_stdout,
+                    save_to_data_platform=False,
+                    site_meta=site_metadata.get(pv_id),
+                )
+                if success:
+                    num_successes += 1
+        return num_successes
+
+    num_successes = asyncio.run(_run_app())
 
     num_errors = len(pv_ids) - num_successes
 
-    _log.info(
+    log.info(
         f"Ran successfully on {num_successes} PV sites ({num_successes / len(pv_ids) * 100:.1f}%)"
     )
-    _log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f}%)")
+    log.info(f"Errored on {num_errors} PV sites ({num_errors / len(pv_ids) * 100:.1f}%)")
 
     # If requested, raise if any site failed
     if raise_on_failure and num_errors > 0:

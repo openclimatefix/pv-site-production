@@ -19,6 +19,9 @@ dependencies = [
     "pv-site-prediction==0.1.20",
     "pvsite-datamodel==1.2.0",
     "sentry-sdk==2.1.1",
+    "betterproto>=2.0.0b7",
+    "grpclib>=0.4.7",
+    "dp-sdk",
     "pytest",
     "freezegun",
     "testcontainers",
@@ -58,7 +61,12 @@ exclude = ["notebooks"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests requiring Docker (deselect with '-m not integration')",
+]
 
 
+# --- DEPENDENCY SOURCES --- #
 
-
+[tool.uv.sources]
+dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.21.2/dp_sdk-0.21.2-py3-none-any.whl" }
