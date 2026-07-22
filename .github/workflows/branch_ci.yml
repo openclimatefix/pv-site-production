@@ -16,9 +16,10 @@ jobs:
     uses: openclimatefix/.github/.github/workflows/branch_ci.yml@v2.0.0
     secrets: inherit
     with:
-      enable_linting: false
+      enable_linting: true
       enable_typechecking: false
       tests_folder: forecast-inference/tests
       containerfile: "infrastructure/Dockerfile.forecast-inference"
+      working_directory: "forecast-inference"
 
   # TODO add database-cleanup job
