@@ -192,15 +192,21 @@ def prepare_forecast_values(
     init_ts = pd.Timestamp(init_time_utc)
     if init_ts.tz is None:
         init_ts = init_ts.tz_localize("UTC")
+    init_ts = init_ts.floor("15min")
 
     forecast_values: list[dp.CreateForecastRequestForecastValue] = []
     for row in rows:
-        horizon_mins = int(row.get("horizon_minutes", 0))
-        if not horizon_mins:
+        if "horizon_minutes" in row and row["horizon_minutes"] is not None:
+            horizon_mins = int(row["horizon_minutes"])
+        else:
             start_ts = pd.Timestamp(row["start_utc"])
             if start_ts.tz is None:
                 start_ts = start_ts.tz_localize("UTC")
+            start_ts = start_ts.floor("15min")
             horizon_mins = int((start_ts - init_ts).total_seconds() / 60)
+
+        # Round horizon minutes to 15-minute boundaries
+        horizon_mins = int(round(horizon_mins / 15.0) * 15)
 
         p50_fraction = max(0.0, min(1.0, (row["forecast_power_kw"] * 1000) / capacity_watts))
 
@@ -237,20 +243,13 @@ async def save_forecast_to_dataplatform(
     client_location_name = _sanitize(client_location_name)
     energy_source = dp.EnergySource.SOLAR  # UK PV only
 
-    if isinstance(init_time_utc, pd.Timestamp):
-        init_time_utc_dt: datetime = (
-            init_time_utc.tz_localize("UTC") if init_time_utc.tz is None
-            else init_time_utc.tz_convert("UTC")
-        ).to_pydatetime()
+    init_ts = pd.Timestamp(init_time_utc)
+    if init_ts.tz is None:
+        init_ts = init_ts.tz_localize("UTC")
     else:
-        # Use pd.Timestamp as a bridge — .to_pydatetime() always returns a real
-        # datetime, not a FakeDatetime subclass produced by freeze_time.
-        init_time_utc_dt = (
-            pd.Timestamp(init_time_utc)
-            .tz_localize("UTC" if init_time_utc.tzinfo is None else None)
-            if init_time_utc.tzinfo is None
-            else pd.Timestamp(init_time_utc).tz_convert("UTC")
-        ).to_pydatetime()
+        init_ts = init_ts.tz_convert("UTC")
+    init_time_utc_dt: datetime = init_ts.floor("15min").to_pydatetime()
+
 
     log.info(
         "Starting DP save | "
