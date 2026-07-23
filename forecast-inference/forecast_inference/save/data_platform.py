@@ -202,11 +202,7 @@ def prepare_forecast_values(
             start_ts = pd.Timestamp(row["start_utc"])
             if start_ts.tz is None:
                 start_ts = start_ts.tz_localize("UTC")
-            start_ts = start_ts.floor("15min")
             horizon_mins = int((start_ts - init_ts).total_seconds() / 60)
-
-        # Round horizon minutes to 15-minute boundaries
-        horizon_mins = int(round(horizon_mins / 15.0) * 15)
 
         p50_fraction = max(0.0, min(1.0, (row["forecast_power_kw"] * 1000) / capacity_watts))
 
