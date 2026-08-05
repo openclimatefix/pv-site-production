@@ -3,10 +3,11 @@ PV Data Source
 """
 
 import asyncio
+import concurrent.futures
 import copy
 import logging
 import os
-from datetime import UTC
+from datetime import UTC, timedelta
 from uuid import UUID
 
 import numpy as np
@@ -36,6 +37,20 @@ META_KEYS = [
 ]
 
 _log = logging.getLogger(__name__)
+
+
+def _run_async(coro):
+    """Run an async coroutine safely, even if an event loop is already running in the current thread."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(asyncio.run, coro).result()
+    else:
+        return asyncio.run(coro)
 
 
 def _to_float(x: float | None) -> float:
@@ -85,30 +100,42 @@ async def fetch_generation_from_dp(
 
     actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "nednl")
 
-    req = dp.GetObservationsAsTimeseriesRequest(
-        location_uuid=summary.location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
-        observer_name=actual_observer_name,
-        time_window=dp.TimeWindow(
-            start_timestamp_utc=_ensure_timezone_aware(start),
-            end_timestamp_utc=_ensure_timezone_aware(end),
-        ),
-    )
-    try:
-        res = await client.get_observations_as_timeseries(req)
-    except Exception as e:
-        _log.error(f"Failed to fetch observations for {name!r}: {e}")
-        return []
+    start_dt = _ensure_timezone_aware(start)
+    end_dt = _ensure_timezone_aware(end)
+    max_window = timedelta(days=7)
 
-    if not res.values:
-        return []
+    chunks = []
+    curr_start = start_dt
+    while curr_start < end_dt:
+        curr_end = min(curr_start + max_window, end_dt)
+        chunks.append((curr_start, curr_end))
+        curr_start = curr_end
 
-    cap_w = res.values[0].effective_capacity_watts
     data = []
-    for val in res.values:
-        t = val.timestamp_utc
-        power_kw = (val.value_fraction * cap_w) / 1000.0
-        data.append((t, power_kw))
+    for c_start, c_end in chunks:
+        req = dp.GetObservationsAsTimeseriesRequest(
+            location_uuid=summary.location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            observer_name=actual_observer_name,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=c_start,
+                end_timestamp_utc=c_end,
+            ),
+        )
+        try:
+            res = await client.get_observations_as_timeseries(req)
+        except Exception as e:
+            _log.error(f"Failed to fetch observations for {name!r} [{c_start} to {c_end}]: {e}")
+            continue
+
+        if not res.values:
+            continue
+
+        cap_w = res.values[0].effective_capacity_watts
+        for val in res.values:
+            t = val.timestamp_utc
+            power_kw = (val.value_fraction * cap_w) / 1000.0
+            data.append((t, power_kw))
 
     return data
 
@@ -229,7 +256,7 @@ class DbPvDataSource(PvDataSource):
                     raise ValueError(
                         "Reading from the Data Platform requires both `start_ts` and `end_ts`"
                     )
-                df, dp_locations = asyncio.run(
+                df, dp_locations = _run_async(
                     _get_generation_and_locations_from_dp(sites, start_ts, end_ts)
                 )
             else:
