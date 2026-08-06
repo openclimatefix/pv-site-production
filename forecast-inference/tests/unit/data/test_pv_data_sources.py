@@ -11,7 +11,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pvsite_datamodel.sqlmodels import LocationSQL
 
-from forecast_inference.data.pv_data_sources import DbPvDataSource, fetch_generation_from_dp
+from forecast_inference.data.pv_data_sources import (
+    DbPvDataSource,
+    fetch_generation_from_dp,
+)
 
 
 def _mock_dp_context(client):
@@ -198,4 +201,50 @@ class TestDbPvDataSourceReadsFromDataPlatform:
             )
 
         mock_get_client.assert_not_called()
+        assert result["latitude"].sel(id=site_uuid).item() == pytest.approx(51.0)
+
+    def test_works_when_called_from_within_a_running_event_loop(
+        self, monkeypatch, database_connection, dp_site
+    ):
+        """Regression test: `app.py` calls `model.predict()` (and so `.get()`) synchronously
+        from inside `asyncio.run(_run_app())`. `.get()` must not try to `asyncio.run()` again
+        on top of that already-running loop.
+        """
+        monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "true")
+        site_uuid = str(dp_site.location_uuid)
+
+        mock_client = AsyncMock()
+        mock_obs_resp = MagicMock()
+        mock_obs_resp.values = []
+        mock_client.get_observations_as_timeseries.return_value = mock_obs_resp
+
+        mock_summary = MagicMock()
+        mock_summary.location_uuid = "dp-uuid-123"
+        mock_summary.effective_capacity_watts = 4000
+        mock_summary.latlng.latitude = 51.0
+        mock_summary.latlng.longitude = -1.0
+
+        async def _call_get_from_within_a_running_loop():
+            pv_data_source = DbPvDataSource(database_connection)
+            return pv_data_source.get(
+                [site_uuid],
+                start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
+                end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
+            )
+
+        with (
+            patch(
+                "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+                return_value=_mock_dp_context(mock_client),
+            ),
+            patch(
+                "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
+                new=AsyncMock(return_value={"test_dp_site": mock_summary}),
+            ),
+        ):
+            # asyncio.run() here mirrors app.py's `asyncio.run(_run_app())`, under which
+            # `.get()` is invoked synchronously — this must not raise
+            # "asyncio.run() cannot be called from a running event loop".
+            result = asyncio.run(_call_get_from_within_a_running_loop())
+
         assert result["latitude"].sel(id=site_uuid).item() == pytest.approx(51.0)

@@ -124,7 +124,7 @@ async def fetch_generation_from_dp(
         )
         try:
             res = await client.get_observations_as_timeseries(req)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - one site's DP failure shouldn't abort the run
             _log.error(f"Failed to fetch observations for {name!r} [{c_start} to {c_end}]: {e}")
             continue
 
