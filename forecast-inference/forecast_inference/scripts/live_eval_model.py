@@ -8,7 +8,12 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from forecast_inference._db_helpers import get_forecasts, get_generation, get_site_uuids, rows_to_df
+from forecast_inference._db_helpers import (
+    get_forecasts,
+    get_generation,
+    get_site_uuids,
+    rows_to_df,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -76,7 +81,8 @@ def main(
     """Main."""
     logging.basicConfig(level=log_level.upper())
 
-    end_utc = dt.datetime.utcnow()
+    # Naive UTC by convention, to match GenerationSQL/ForecastValueSQL's naive DateTime columns.
+    end_utc = dt.datetime.utcnow()  # noqa: DTZ003
     start_utc = end_utc - dt.timedelta(hours=history_hours)
 
     engine = sa.create_engine(db_url, future=True)

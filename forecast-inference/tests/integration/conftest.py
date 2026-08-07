@@ -56,7 +56,7 @@ def dp_address():
     with PostgresContainer(
         f"ghcr.io/openclimatefix/data-platform-pgdb:{version('dp_sdk')}",
         username="postgres",
-        password="postgres",  # noqa: S106
+        password="postgres",
         dbname="postgres",
         env={"POSTGRES_HOST": "db"},
     ) as postgres:

@@ -19,7 +19,9 @@ from psp.typings import PvId, Timestamp, X
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
-from forecast_inference.data.nwp_data_sources import download_and_add_osgb_to_nwp_data_source
+from forecast_inference.data.nwp_data_sources import (
+    download_and_add_osgb_to_nwp_data_source,
+)
 from forecast_inference.data.pv_data_sources import DbPvDataSource
 from forecast_inference.save import (
     DataPlatformClient,
@@ -83,10 +85,8 @@ async def _run_model_and_save_for_one_pv(
         try:
             pred = model.predict(X(pv_id=pv_id, ts=timestamp))
         except Exception:
-            log.error(
+            log.exception(
                 'There was an exception calling `model.predict` for pv_id="{pv_id}". Skipping.',
-                # Add the exception traceback.
-                exc_info=True,
             )
             return False
 
@@ -94,38 +94,40 @@ async def _run_model_and_save_for_one_pv(
 
     # Assemble the data in ForecastValuesSQL rows for the database.
     rows = [
-        dict(
-            start_utc=timestamp + dt.timedelta(minutes=start),
-            end_utc=timestamp + dt.timedelta(minutes=end),
-            forecast_power_kw=np.round(value, 3),
-            horizon_minutes=start,
-        )
+        {
+            "start_utc": timestamp + dt.timedelta(minutes=start),
+            "end_utc": timestamp + dt.timedelta(minutes=end),
+            "forecast_power_kw": np.round(value, 3),
+            "horizon_minutes": start,
+        }
         for (start, end), value in zip(model.config.horizons, pred.powers)
     ]
 
     if write_to_db:
-        with profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'):
-            with database_connection.get_session() as session:
-                forecast = ForecastSQL(
-                    location_uuid=site_uuid,  # type: ignore
-                    forecast_version="0.0.0",  # TODO get version
-                    timestamp_utc=timestamp,
-                )
-                session.add(forecast)
-                # Flush to get the Forecast's primary key.
-                session.flush()
+        with (
+            profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'),
+            database_connection.get_session() as session,
+        ):
+            forecast = ForecastSQL(
+                location_uuid=site_uuid,  # type: ignore
+                forecast_version="0.0.0",  # TODO get version
+                timestamp_utc=timestamp,
+            )
+            session.add(forecast)
+            # Flush to get the Forecast's primary key.
+            session.flush()
 
-                # Insert all the forecast value objects in one efficient call.
-                session.bulk_save_objects(
-                    [
-                        ForecastValueSQL(
-                            **row,
-                            forecast_uuid=forecast.forecast_uuid,
-                        )
-                        for row in rows
-                    ]
-                )
-                session.commit()
+            # Insert all the forecast value objects in one efficient call.
+            session.bulk_save_objects(
+                [
+                    ForecastValueSQL(
+                        **row,
+                        forecast_uuid=forecast.forecast_uuid,
+                    )
+                    for row in rows
+                ]
+            )
+            session.commit()
     elif print_to_stdout:
         # Write to stdout when we don't want to write in the database.
         print(f'PV Site = "{pv_id}"')
@@ -238,7 +240,8 @@ def main(
     config = load_config(config_path, dotenv_variables | os.environ)
 
     if timestamp is None:
-        timestamp = dt.datetime.utcnow()
+        # Naive UTC by convention, to match GenerationSQL/ForecastSQL's naive DateTime columns.
+        timestamp = dt.datetime.utcnow()  # noqa: DTZ003
         if round_date_to_minutes:
             timestamp = timestamp.replace(
                 minute=int(timestamp.minute / round_date_to_minutes) * round_date_to_minutes,

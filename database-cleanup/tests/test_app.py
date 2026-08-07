@@ -1,16 +1,22 @@
 import datetime as dt
-import uuid
 import os
 import tempfile
-import pandas as pd
+import uuid
 
+import pandas as pd
 import pytest
 import sqlalchemy as sa
 from click.testing import CliRunner
-from database_cleanup.app import main, format_date
 from freezegun import freeze_time
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL, LocationGroupSQL
+from pvsite_datamodel.sqlmodels import (
+    ForecastSQL,
+    ForecastValueSQL,
+    LocationGroupSQL,
+    LocationSQL,
+)
 from sqlalchemy.orm import Session
+
+from database_cleanup.app import format_date, main
 
 
 def _add_foreasts(
@@ -102,7 +108,8 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
     with tempfile.TemporaryDirectory() as tmpdirname:
         save_dir = tmpdirname
 
-        timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]
+        # Naive UTC by convention, to match ForecastSQL.timestamp_utc (a naive DateTime column).
+        timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]  # noqa: DTZ001
 
         # Add forecasts for those.
         _add_foreasts(
@@ -167,7 +174,8 @@ def test_app_dry_run(session: Session, site, do_delete: bool):
     num_forecasts = 10
     num_values = 9
 
-    timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]
+    # Naive UTC by convention, to match ForecastSQL.timestamp_utc (a naive DateTime column).
+    timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]  # noqa: DTZ001
 
     _add_foreasts(
         session,

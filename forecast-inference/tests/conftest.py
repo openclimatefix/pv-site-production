@@ -16,7 +16,8 @@ from testcontainers.postgres import PostgresContainer
 def now():
     """Set a deterministic "now" time for all the tests."""
     with freeze_time("2020-01-01 12:00"):
-        yield datetime.utcnow()
+        # Naive UTC by convention, to match naive DateTime columns used throughout the tests.
+        yield datetime.utcnow()  # noqa: DTZ003
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -44,10 +45,9 @@ def db_session(database_connection):
     We automatically roll back whatever happens when the test completes.
     """
 
-    with database_connection.get_session() as session:
-        with session.begin():
-            yield session
-            session.rollback()
+    with database_connection.get_session() as session, session.begin():
+        yield session
+        session.rollback()
 
 
 @pytest.fixture(scope="session", autouse=True)
