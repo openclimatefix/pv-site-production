@@ -98,7 +98,7 @@ async def fetch_generation_from_dp(
         _log.warning(f"Site {name!r} not found in Data Platform")
         return []
 
-    actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "nednl")
+    actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "pv_actual")
 
     start_dt = _ensure_timezone_aware(start)
     end_dt = _ensure_timezone_aware(end)
