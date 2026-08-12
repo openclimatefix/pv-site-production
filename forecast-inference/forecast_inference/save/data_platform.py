@@ -119,11 +119,7 @@ async def fetch_generation_from_dp(
                 end_timestamp_utc=c_end,
             ),
         )
-        try:
-            res = await client.get_observations_as_timeseries(req)
-        except Exception as e:  # noqa: BLE001 - one site's DP failure shouldn't abort the run
-            log.error(f"Failed to fetch observations for {name!r} [{c_start} to {c_end}]: {e}")
-            continue
+        res = await client.get_observations_as_timeseries(req)
 
         if not res.values:
             continue
@@ -157,51 +153,45 @@ def fetch_location_from_dp(
     }
 
 
-async def get_generation_and_locations_from_dp(
+async def get_generation_from_dp(
+    client: DataPlatformClient,
+    loc_map: dict[str, LocationSummary],
     sites: list[LocationSQL],
     start_ts: Timestamp,
     end_ts: Timestamp,
-    loc_map_cache: dict[str, LocationSummary] | None = None,
-) -> tuple[pd.DataFrame, dict[str, dict], dict[str, LocationSummary]]:
-    """Fetch generation values and location metadata for all sites from the Data Platform.
+) -> pd.DataFrame:
+    """Fetch generation values for all sites from the Data Platform, as a dataframe.
 
-    If `loc_map_cache` is provided, it is reused instead of re-listing every location in
-    the Data Platform (a `.get()` call happens once per site, so re-fetching the full
-    location list on every call would multiply DP round-trips by the number of sites).
-
-    Returns a tuple of:
-    - A dataframe of (id, ts, power) records, one row per generation value found.
-    - A dict of location_uuid (as in our database) -> {latitude, longitude, capacity_kw},
-      for sites that were found in the Data Platform.
-    - The location map used (either the supplied cache, or a freshly fetched one), so the
-      caller can cache it for subsequent calls.
+    Returns a dataframe of (id, ts, power) records, one row per generation value found.
     """
-    async with get_dataplatform_client() as client:
-        loc_map = loc_map_cache if loc_map_cache is not None else await fetch_dp_location_map(
-            client
-        )
-
-        generations = await asyncio.gather(
-            *[
-                fetch_generation_from_dp(client, loc_map, site, start_ts, end_ts)
-                for site in sites
-            ]
-        )
+    generations = await asyncio.gather(
+        *[fetch_generation_from_dp(client, loc_map, site, start_ts, end_ts) for site in sites]
+    )
 
     records = [
         {"id": str(site.location_uuid), "ts": t.replace(tzinfo=None), "power": power_kw}
         for site, site_generation in zip(sites, generations)
         for t, power_kw in site_generation
     ]
-    df = pd.DataFrame.from_records(records, columns=["id", "ts", "power"])
+    return pd.DataFrame.from_records(records, columns=["id", "ts", "power"])
 
-    locations = {
+
+def get_locations_from_dp(
+    loc_map: dict[str, LocationSummary],
+    sites: list[LocationSQL],
+) -> dict[str, dict]:
+    """Look up location metadata (latitude, longitude, capacity_kw) for all sites from the DP.
+
+    Purely local dict lookups against an already-fetched `loc_map` — no network calls.
+
+    Returns a dict of location_uuid (as in our database) -> {latitude, longitude, capacity_kw},
+    for sites that were found in the Data Platform.
+    """
+    return {
         str(site.location_uuid): location
         for site in sites
         if (location := fetch_location_from_dp(loc_map, site)) is not None
     }
-
-    return df, locations, loc_map
 
 
 async def resolve_target_uuid(

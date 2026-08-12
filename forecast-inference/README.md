@@ -25,8 +25,12 @@ Need to set
 - OCF_PV_DB_URL
 - NWP_ZARR_PATH
 - SAVE_TO_DATA_PLATFORM
-- READ_FROM_DATA_PLATFORM
-- OBSERVER_NAME
+
+Optional:
+- `READ_FROM_DATA_PLATFORM`
+- `OBSERVER_NAME` (default `pv_site_api`)
+  observations from. Only used when `READ_FROM_DATA_PLATFORM=true` — has no effect
+  otherwise.
 
 
 ## Development
