@@ -4,6 +4,7 @@ These tests require no Docker or network access — they test pure logic only.
 """
 
 import datetime as dt
+
 import pytest
 
 from forecast_inference.save.data_platform import _sanitize, prepare_forecast_values
