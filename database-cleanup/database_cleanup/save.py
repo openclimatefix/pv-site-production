@@ -1,12 +1,11 @@
 import logging
 import os
 import uuid
-import fsspec
 
+import fsspec
+import pandas as pd
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGroupSQL
 from sqlalchemy.orm import Session
-import pandas as pd
-
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOGLEVEL", "INFO")),

@@ -65,18 +65,28 @@ def test_app_can_not_use_both_date_and_round_to_minutes(now):
 
 
 @pytest.mark.parametrize(
+    # Naive UTC by convention: expected_timestamp is string-matched against app.py's log
+    # output, which is built from the naive `datetime.datetime.utcnow()`.
     "round_to,timestamp,expected_timestamp",
     [
         # No rounding by default.
         [
             None,
-            datetime(2000, 12, 30, 23, 59, 59, 123456),
-            datetime(2000, 12, 30, 23, 59, 59, 123456),
+            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
+            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
         ],
-        [None, datetime(2000, 12, 30), datetime(2000, 12, 30)],
+        [None, datetime(2000, 12, 30), datetime(2000, 12, 30)],  # noqa: DTZ001
         # "Floor" the minutes when we want to round.
-        [5, datetime(2000, 12, 30, 23, 59, 59, 123456), datetime(2000, 12, 30, 23, 55)],
-        [10, datetime(2000, 12, 30, 23, 59, 59, 123456), datetime(2000, 12, 30, 23, 50)],
+        [
+            5,
+            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
+            datetime(2000, 12, 30, 23, 55),  # noqa: DTZ001
+        ],
+        [
+            10,
+            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
+            datetime(2000, 12, 30, 23, 50),  # noqa: DTZ001
+        ],
     ],
 )
 def test_app_no_round_date(round_to, timestamp, expected_timestamp, caplog):

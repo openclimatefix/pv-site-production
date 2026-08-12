@@ -23,7 +23,6 @@ from forecast_inference.save.data_platform import (
     save_forecast_to_dataplatform,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers (same pattern as site-forecast-app)
 # ---------------------------------------------------------------------------

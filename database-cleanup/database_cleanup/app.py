@@ -6,23 +6,22 @@ database with work.
 
 import contextlib
 import datetime as dt
+import importlib.metadata
 import logging
 import os
 import time
 import uuid
-from typing import Optional
 
 import click
-import importlib.metadata
 import sentry_sdk
 import sqlalchemy as sa
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL
 from sqlalchemy.orm import Session, sessionmaker
+
 from database_cleanup.save import (
     get_site_uuids_with_site_group_service_level,
     save_forecast_and_values,
 )
-
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOGLEVEL", "INFO")),
@@ -74,7 +73,7 @@ def _get_forecasts(
     session: Session,
     max_date: dt.datetime,
     limit: int,
-    site_uuids: Optional[list[uuid.UUID]] = None,
+    site_uuids: list[uuid.UUID] | None = None,
 ) -> list[uuid.UUID]:
     """Get the `limit` older forecasts that are before `max_date`."""
     stmt = sa.select(ForecastSQL.forecast_uuid).where(ForecastSQL.timestamp_utc < max_date)
@@ -137,7 +136,7 @@ def _delete_forecasts_and_values(session: Session, forecast_uuids: list[uuid.UUI
 def main(
     date: dt.datetime,
     batch_size: int,
-    save_dir: Optional[str],
+    save_dir: str | None,
     sleep: int,
     do_delete: bool,
     log_level: str,
@@ -230,9 +229,10 @@ def format_date(date) -> dt.datetime:
     :return:
     """
     if date is None:
-        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
+        # Naive UTC by convention, to match ForecastSQL.timestamp_utc (a naive DateTime column).
+        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")  # noqa: DTZ011
 
-    date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+    date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")  # noqa: DTZ007
 
     return date
 
