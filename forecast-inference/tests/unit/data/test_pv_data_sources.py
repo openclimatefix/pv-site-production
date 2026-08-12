@@ -14,7 +14,11 @@ from pvsite_datamodel.sqlmodels import LocationSQL
 from forecast_inference.data.pv_data_sources import (
     DbPvDataSource,
     fetch_generation_from_dp,
+    fetch_location_from_dp,
 )
+from forecast_inference.save.data_platform import _sanitize
+
+dp_site_name = "test-dp-site"
 
 
 def _mock_dp_context(client):
@@ -29,7 +33,7 @@ def dp_site(database_connection):
     with database_connection.get_session() as session:
         site = LocationSQL(
             client_location_id=99999,
-            client_location_name="test-dp-site",
+            client_location_name=dp_site_name,
             latitude=51.0,
             longitude=-1.0,
             capacity_kw=4.0,
@@ -61,7 +65,7 @@ class TestFetchGenerationFromDp:
 
         mock_summary = MagicMock()
         mock_summary.location_uuid = "dp-uuid-123"
-        loc_map = {"test_dp_site": mock_summary}
+        loc_map = {_sanitize(dp_site_name): mock_summary}
 
         data = asyncio.run(
             fetch_generation_from_dp(
@@ -100,6 +104,34 @@ class TestFetchGenerationFromDp:
         mock_client.get_observations_as_timeseries.assert_not_called()
 
 
+class TestFetchLocationFromDp:
+    """Test the module-level `fetch_location_from_dp` helper."""
+
+    def test_returns_latitude_longitude_and_capacity(self, dp_site):
+        mock_summary = MagicMock()
+        mock_summary.latlng.latitude = 52.5
+        mock_summary.latlng.longitude = -2.5
+        mock_summary.effective_capacity_watts = 5000
+        loc_map = {_sanitize(dp_site_name): mock_summary}
+
+        location = fetch_location_from_dp(loc_map, dp_site)
+
+        assert location == {
+            "latitude": 52.5,
+            "longitude": -2.5,
+            "capacity_kw": 5.0,
+        }
+
+    def test_site_not_in_dp_returns_none(self, dp_site):
+        location = fetch_location_from_dp({"some-other-site": MagicMock()}, dp_site)
+        assert location is None
+
+    def test_site_without_client_location_name_returns_none(self, dp_site):
+        dp_site.client_location_name = None
+        location = fetch_location_from_dp({_sanitize(dp_site_name): MagicMock()}, dp_site)
+        assert location is None
+
+
 class TestDbPvDataSourceReadsFromDataPlatform:
     """Test `DbPvDataSource.get()` with `READ_FROM_DATA_PLATFORM=true`."""
 
@@ -133,7 +165,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
             ),
             patch(
                 "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
-                new=AsyncMock(return_value={"test_dp_site": mock_summary}),
+                new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
             ),
         ):
             pv_data_source = DbPvDataSource(database_connection)
@@ -239,7 +271,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
             ),
             patch(
                 "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
-                new=AsyncMock(return_value={"test_dp_site": mock_summary}),
+                new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
             ),
         ):
             # asyncio.run() here mirrors app.py's `asyncio.run(_run_app())`, under which
@@ -248,3 +280,42 @@ class TestDbPvDataSourceReadsFromDataPlatform:
             result = asyncio.run(_call_get_from_within_a_running_loop())
 
         assert result["latitude"].sel(id=site_uuid).item() == pytest.approx(51.0)
+
+    def test_location_map_is_cached_across_calls(self, monkeypatch, database_connection, dp_site):
+        """A single DbPvDataSource instance should only list DP locations once, not
+        once per `.get()` call (which happens once per site in the real app loop).
+        """
+        monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "true")
+        site_uuid = str(dp_site.location_uuid)
+
+        mock_client = AsyncMock()
+        mock_obs_resp = MagicMock()
+        mock_obs_resp.values = []
+        mock_client.get_observations_as_timeseries.return_value = mock_obs_resp
+
+        mock_summary = MagicMock()
+        mock_summary.location_uuid = "dp-uuid-123"
+        mock_summary.effective_capacity_watts = 4000
+        mock_summary.latlng.latitude = 51.0
+        mock_summary.latlng.longitude = -1.0
+        mock_fetch_loc_map = AsyncMock(return_value={_sanitize(dp_site_name): mock_summary})
+
+        with (
+            patch(
+                "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+                return_value=_mock_dp_context(mock_client),
+            ),
+            patch(
+                "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
+                new=mock_fetch_loc_map,
+            ),
+        ):
+            pv_data_source = DbPvDataSource(database_connection)
+            for _ in range(3):
+                pv_data_source.get(
+                    [site_uuid],
+                    start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
+                    end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
+                )
+
+        mock_fetch_loc_map.assert_called_once()

@@ -67,18 +67,6 @@ def _ensure_timezone_aware(ts: Timestamp) -> Timestamp:
     return ts.astimezone(UTC)
 
 
-def _get_site_client_id_to_uuid_mapping(
-    session: Session,
-) -> dict[str, str]:
-    """Construct a mapping from site_client_id to site_uuid.
-
-    This is needed because our meta data is still by client_site_id.
-    """
-    query = session.query(LocationSQL)
-    mapping = {str(row.client_location_id): str(row.location_uuid) for row in query}
-    return mapping
-
-
 async def fetch_generation_from_dp(
     client: DataPlatformClient,
     loc_map: dict[str, LocationSummary],
@@ -154,8 +142,8 @@ def fetch_location_from_dp(
         return None
 
     return {
-        "latitude": summary.latlng.latitude if summary.latlng else np.nan,
-        "longitude": summary.latlng.longitude if summary.latlng else np.nan,
+        "latitude": summary.latlng.latitude,
+        "longitude": summary.latlng.longitude,
         "capacity_kw": summary.effective_capacity_watts / 1000.0,
     }
 
@@ -164,16 +152,25 @@ async def _get_generation_and_locations_from_dp(
     sites: list[LocationSQL],
     start_ts: Timestamp,
     end_ts: Timestamp,
-) -> tuple[pd.DataFrame, dict[str, dict]]:
+    loc_map_cache: dict[str, LocationSummary] | None = None,
+) -> tuple[pd.DataFrame, dict[str, dict], dict[str, LocationSummary]]:
     """Fetch generation values and location metadata for all sites from the Data Platform.
+
+    If `loc_map_cache` is provided, it is reused instead of re-listing every location in
+    the Data Platform (a `.get()` call happens once per site, so re-fetching the full
+    location list on every call would multiply DP round-trips by the number of sites).
 
     Returns a tuple of:
     - A dataframe of (id, ts, power) records, one row per generation value found.
     - A dict of location_uuid (as in our database) -> {latitude, longitude, capacity_kw},
       for sites that were found in the Data Platform.
+    - The location map used (either the supplied cache, or a freshly fetched one), so the
+      caller can cache it for subsequent calls.
     """
     async with get_dataplatform_client() as client:
-        loc_map = await fetch_dp_location_map(client)
+        loc_map = loc_map_cache if loc_map_cache is not None else await fetch_dp_location_map(
+            client
+        )
 
         generations = await asyncio.gather(
             *[
@@ -195,7 +192,7 @@ async def _get_generation_and_locations_from_dp(
         if (location := fetch_location_from_dp(loc_map, site)) is not None
     }
 
-    return df, locations
+    return df, locations, loc_map
 
 
 class DbPvDataSource(PvDataSource):
@@ -215,6 +212,21 @@ class DbPvDataSource(PvDataSource):
         """Constructor"""
         self._database_connection = database_connection
         self._max_ts: Timestamp | None = None
+        # Cached across calls so a run over many sites doesn't re-list every DP location
+        # on every single `.get()` call (which happens once per site).
+        self._dp_location_map: dict[str, LocationSummary] | None = None
+
+    def _load_sites(self, session: Session, site_uuids: list[str]) -> list[LocationSQL]:
+        """Fetch and validate the LocationSQL rows for the given site uuids."""
+        site_query = session.query(LocationSQL).filter(
+            LocationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
+        )
+        sites = site_query.all()
+
+        if len(sites) != len(site_uuids):
+            raise RuntimeError(f"We found only {len(sites)} of {len(site_uuids)}, aborting!")
+
+        return sites
 
     def get(
         self,
@@ -239,27 +251,31 @@ class DbPvDataSource(PvDataSource):
         read_from_dp = os.getenv("READ_FROM_DATA_PLATFORM", "false").lower() == "true"
 
         _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
-        with self._database_connection.get_session() as session:
-            # Get the site info in a separate query. We don't JOIN on `generation` in case there
-            # is no generation data.
-            site_query = session.query(LocationSQL).filter(
-                LocationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
-            )
-            sites = site_query.all()
 
-            if len(sites) != len(site_uuids):
-                raise RuntimeError(f"We found only {len(sites)} of {len(site_uuids)}, aborting!")
+        if read_from_dp:
+            # Get the site info first and let the DB session close before making the
+            # (potentially slow) Data Platform network calls below, rather than holding
+            # a pooled DB connection idle for the duration of the DP round-trip.
+            with self._database_connection.get_session() as session:
+                sites = self._load_sites(session, site_uuids)
 
-            if read_from_dp:
-                _log.info("Reading generation and locations from the Data Platform")
-                if start_ts is None or end_ts is None:
-                    raise ValueError(
-                        "Reading from the Data Platform requires both `start_ts` and `end_ts`"
-                    )
-                df, dp_locations = _run_async(
-                    _get_generation_and_locations_from_dp(sites, start_ts, end_ts)
+            if start_ts is None or end_ts is None:
+                raise ValueError(
+                    "Reading from the Data Platform requires both `start_ts` and `end_ts`"
                 )
+            if self._dp_location_map is None:
+                _log.info("Reading generation and locations from the Data Platform")
             else:
+                _log.debug("Reading generation and locations from the Data Platform (cached)")
+            df, dp_locations, self._dp_location_map = _run_async(
+                _get_generation_and_locations_from_dp(
+                    sites, start_ts, end_ts, self._dp_location_map
+                )
+            )
+        else:
+            with self._database_connection.get_session() as session:
+                sites = self._load_sites(session, site_uuids)
+
                 query = session.query(GenerationSQL).filter(
                     GenerationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
                 )
