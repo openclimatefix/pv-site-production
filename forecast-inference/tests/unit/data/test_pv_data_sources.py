@@ -1,7 +1,6 @@
 """Unit tests for reading generation and location data from the Data Platform.
 
-Mirrors site-forecast-app/tests/unit/test_fetch_generation_data_from_dp.py: DP calls
-are mocked, so these tests need no Docker or network access.
+
 """
 
 import asyncio

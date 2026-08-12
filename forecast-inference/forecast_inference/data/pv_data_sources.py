@@ -144,8 +144,6 @@ class DbPvDataSource(PvDataSource):
                     query = query.filter(GenerationSQL.start_utc >= start_ts)
 
                 if end_ts is not None:
-                    # Note that we still filter on the `start_utc` field. This is because we
-                    # assume that the "generation" power is punctual.
                     query = query.filter(GenerationSQL.start_utc < end_ts)
 
                 generations = query.all()
@@ -154,14 +152,10 @@ class DbPvDataSource(PvDataSource):
                 _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
 
                 # Build a pandas dataframe of id, timestamp and power.
-                # This makes it easy to convert to an xarray.
                 df = pd.DataFrame.from_records(
                     [
                         {
                             "id": str(g.location_uuid),
-                            # We remove the timezone information since otherwise the timestamp
-                            # index gets converted to an "object" index later. In any case we
-                            # should have everything in UTC.
                             "ts": g.start_utc.replace(tzinfo=None)
                             if g.start_utc is not None
                             else None,
@@ -186,9 +180,7 @@ class DbPvDataSource(PvDataSource):
         # Make sure the ids are in the index. They won't be in the case where the is no data.
         da = da.reindex(id=pv_ids)
 
-        # Add the metadata associated with the PV systems. Prefer values fetched from the Data
-        # Platform (when reading from there), falling back to the database for sites the DP
-        # doesn't know about, and for the fields (tilt, orientation) it doesn't hold at all.
+     
         meta = {
             str(site.location_uuid): {
                 key: dp_locations.get(str(site.location_uuid), {}).get(
