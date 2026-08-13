@@ -260,18 +260,6 @@ async def save_forecast_to_dataplatform(
         log.warning("no forecast values after preparation")
         return
 
-    horizon_mins_sorted = sorted(fv.horizon_mins for fv in forecast_values)
-    min_target = init_time_utc_dt + timedelta(minutes=horizon_mins_sorted[0])
-    max_target = init_time_utc_dt + timedelta(minutes=horizon_mins_sorted[-1])
-    log.info(
-        "DP CreateForecast request | "
-        f"location_uuid={target_uuid_str}  "
-        f"forecaster={forecaster.forecaster_name!r} v{forecaster.forecaster_version}  "
-        f"init_time_utc={init_time_utc_dt.isoformat()}  "
-        f"horizon_mins=[{horizon_mins_sorted[0]}..{horizon_mins_sorted[-1]}]  "
-        f"target_timestamp_range=[{min_target.isoformat()}..{max_target.isoformat()}]  "
-        f"num_values={len(forecast_values)}",
-    )
 
     base_request = dp.CreateForecastRequest(
         forecaster=forecaster,
