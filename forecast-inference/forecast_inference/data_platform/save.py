@@ -281,8 +281,6 @@ async def save_forecast_to_dataplatform(
         log.exception(
             "DP CreateForecast FAILED | "
             f"location_uuid={target_uuid_str}  "
-            f"init_time_utc={init_time_utc_dt.isoformat()}  "
-            f"target_timestamp_range=[{min_target.isoformat()}..{max_target.isoformat()}]",
-        )
+            f"init_time_utc={init_time_utc_dt.isoformat()}")
         raise
     log.info(f"Save complete for location={client_location_name!r}")
