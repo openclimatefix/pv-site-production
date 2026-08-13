@@ -13,8 +13,8 @@ from pvsite_datamodel.sqlmodels import LocationSQL
 from forecast_inference.data.pv_data_sources import DbPvDataSource
 from forecast_inference.data_platform.client import _sanitize
 from forecast_inference.data_platform.load import (
-    fetch_generation_from_dp,
-    fetch_location_from_dp,
+    fetch_generation_for_one_site_from_dp,
+    fetch_location_for_one_site_from_dp,
 )
 
 dp_site_name = "test-dp-site"
@@ -48,9 +48,9 @@ def dp_site(database_connection):
 
 
 class TestFetchGenerationFromDp:
-    """Test the module-level `fetch_generation_from_dp` helper."""
+    """Test the module-level `fetch_generation_for_one_site_from_dp` helper."""
 
-    def test_fetch_generation_from_dp_success(self, dp_site):
+    def test_fetch_generation_for_one_site_from_dp_success(self, dp_site):
         mock_client = AsyncMock()
 
         mock_val = MagicMock()
@@ -67,7 +67,7 @@ class TestFetchGenerationFromDp:
         loc_map = {_sanitize(dp_site_name): mock_summary}
 
         data = asyncio.run(
-            fetch_generation_from_dp(
+            fetch_generation_for_one_site_from_dp(
                 mock_client,
                 loc_map,
                 dp_site,
@@ -86,11 +86,11 @@ class TestFetchGenerationFromDp:
         assert req.location_uuid == "dp-uuid-123"
         assert req.observer_name == "test-observer"
 
-    def test_fetch_generation_from_dp_site_not_in_dp(self, dp_site):
+    def test_fetch_generation_for_one_site_from_dp_site_not_in_dp(self, dp_site):
         mock_client = AsyncMock()
 
         data = asyncio.run(
-            fetch_generation_from_dp(
+            fetch_generation_for_one_site_from_dp(
                 mock_client,
                 {"some-other-site": MagicMock()},
                 dp_site,
@@ -104,7 +104,7 @@ class TestFetchGenerationFromDp:
 
 
 class TestFetchLocationFromDp:
-    """Test the module-level `fetch_location_from_dp` helper."""
+    """Test the module-level `fetch_location_for_one_site_from_dp` helper."""
 
     def test_returns_latitude_longitude_and_capacity(self, dp_site):
         mock_summary = MagicMock()
@@ -113,7 +113,7 @@ class TestFetchLocationFromDp:
         mock_summary.effective_capacity_watts = 5000
         loc_map = {_sanitize(dp_site_name): mock_summary}
 
-        location = fetch_location_from_dp(loc_map, dp_site)
+        location = fetch_location_for_one_site_from_dp(loc_map, dp_site)
 
         assert location == {
             "latitude": 52.5,
@@ -122,12 +122,12 @@ class TestFetchLocationFromDp:
         }
 
     def test_site_not_in_dp_returns_none(self, dp_site):
-        location = fetch_location_from_dp({"some-other-site": MagicMock()}, dp_site)
+        location = fetch_location_for_one_site_from_dp({"some-other-site": MagicMock()}, dp_site)
         assert location is None
 
     def test_site_without_client_location_name_returns_none(self, dp_site):
         dp_site.client_location_name = None
-        location = fetch_location_from_dp({_sanitize(dp_site_name): MagicMock()}, dp_site)
+        location = fetch_location_for_one_site_from_dp({_sanitize(dp_site_name): MagicMock()}, dp_site)
         assert location is None
 
 

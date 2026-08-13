@@ -30,7 +30,7 @@ def _ensure_timezone_aware(ts: Timestamp) -> Timestamp:
     return ts.astimezone(UTC)
 
 
-async def fetch_generation_from_dp(
+async def fetch_generation_for_one_site_from_dp(
     client: DataPlatformClient,
     loc_map: dict[str, LocationSummary],
     site: LocationSQL,
@@ -87,7 +87,7 @@ async def fetch_generation_from_dp(
     return data
 
 
-def fetch_location_from_dp(
+def fetch_location_for_one_site_from_dp(
     loc_map: dict[str, LocationSummary],
     site: LocationSQL,
 ) -> dict | None:
@@ -119,7 +119,7 @@ async def get_generation_from_dp(
     Returns a dataframe of (id, ts, power) records, one row per generation value found.
     """
     generations = await asyncio.gather(
-        *[fetch_generation_from_dp(client, loc_map, site, start_ts, end_ts) for site in sites]
+        *[fetch_generation_for_one_site_from_dp(client, loc_map, site, start_ts, end_ts) for site in sites]
     )
 
     records = [
@@ -144,7 +144,7 @@ def get_locations_from_dp(
     return {
         str(site.location_uuid): location
         for site in sites
-        if (location := fetch_location_from_dp(loc_map, site)) is not None
+        if (location := fetch_location_for_one_site_from_dp(loc_map, site)) is not None
     }
 
 
