@@ -12,8 +12,8 @@ import asyncio
 import datetime as dt
 
 import pytest
-from dp_sdk.ocf import dp
 from freezegun.api import real_datetime
+from ocf import dp
 
 from forecast_inference.data_platform.client import (
     DataPlatformClient,

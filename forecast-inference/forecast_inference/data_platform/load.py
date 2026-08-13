@@ -8,7 +8,7 @@ import os
 from datetime import UTC, timedelta
 
 import pandas as pd
-from dp_sdk.ocf import dp
+from ocf import dp
 from psp.typings import Timestamp
 from pvsite_datamodel.sqlmodels import LocationSQL
 

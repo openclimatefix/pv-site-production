@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from forecast_inference.data_platform.client import (
     DataPlatformClient,
@@ -260,6 +260,19 @@ async def save_forecast_to_dataplatform(
         log.warning("no forecast values after preparation")
         return
 
+    horizon_mins_sorted = sorted(fv.horizon_mins for fv in forecast_values)
+    min_target = init_time_utc_dt + timedelta(minutes=horizon_mins_sorted[0])
+    max_target = init_time_utc_dt + timedelta(minutes=horizon_mins_sorted[-1])
+    log.info(
+        "DP CreateForecast request | "
+        f"location_uuid={target_uuid_str}  "
+        f"forecaster={forecaster.forecaster_name!r} v{forecaster.forecaster_version}  "
+        f"init_time_utc={init_time_utc_dt.isoformat()}  "
+        f"horizon_mins=[{horizon_mins_sorted[0]}..{horizon_mins_sorted[-1]}]  "
+        f"target_timestamp_range=[{min_target.isoformat()}..{max_target.isoformat()}]  "
+        f"num_values={len(forecast_values)}",
+    )
+
     base_request = dp.CreateForecastRequest(
         forecaster=forecaster,
         location_uuid=target_uuid_str,
@@ -274,5 +287,14 @@ async def save_forecast_to_dataplatform(
         f"location={target_uuid_str}  values={len(forecast_values)}",
     )
 
-    await client.create_forecast(base_request)
+    try:
+        await client.create_forecast(base_request)
+    except Exception:
+        log.exception(
+            "DP CreateForecast FAILED | "
+            f"location_uuid={target_uuid_str}  "
+            f"init_time_utc={init_time_utc_dt.isoformat()}  "
+            f"target_timestamp_range=[{min_target.isoformat()}..{max_target.isoformat()}]",
+        )
+        raise
     log.info(f"Save complete for location={client_location_name!r}")

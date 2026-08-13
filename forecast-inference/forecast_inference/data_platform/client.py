@@ -11,8 +11,8 @@ import os
 import re
 from collections.abc import AsyncIterator
 
-from dp_sdk.ocf import dp
 from grpclib.client import Channel
+from ocf import dp
 
 # Type alias for the Data Platform client stub
 DataPlatformClient = dp.DataPlatformDataServiceStub
