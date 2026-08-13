@@ -5,7 +5,7 @@ Spins up a real DP Docker container via the ``dp_address`` fixture and verifies
 the full save flow end-to-end.
 
 Unit tests for sanitization and prepare_forecast_values live in
-tests/unit/save/test_data_platform.py (no Docker required).
+tests/unit/data_platform/test_save.py (no Docker required).
 """
 
 import asyncio
@@ -15,11 +15,13 @@ import pytest
 from dp_sdk.ocf import dp
 from freezegun.api import real_datetime
 
-from forecast_inference.save.data_platform import (
+from forecast_inference.data_platform.client import (
     DataPlatformClient,
     _sanitize,
-    create_new_location,
     get_dataplatform_client,
+)
+from forecast_inference.data_platform.save import (
+    create_new_location,
     save_forecast_to_dataplatform,
 )
 

@@ -18,13 +18,8 @@ from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import GenerationSQL, LocationSQL
 from sqlalchemy.orm import Session
 
-from forecast_inference.save.data_platform import (
-    LocationSummary,
-    fetch_dp_location_map,
-    get_dataplatform_client,
-    get_generation_from_dp,
-    get_locations_from_dp,
-)
+from forecast_inference.data_platform.client import LocationSummary
+from forecast_inference.data_platform.load import fetch_generation_and_locations_from_dp
 
 META_KEYS = [
     "longitude",
@@ -56,32 +51,6 @@ def _to_float(x: float | None) -> float:
     if x is None:
         return np.nan
     return x
-
-
-async def _fetch_from_dp(
-    sites: list[LocationSQL],
-    start_ts: Timestamp,
-    end_ts: Timestamp,
-    loc_map_cache: dict[str, LocationSummary] | None,
-) -> tuple[pd.DataFrame, dict[str, dict], dict[str, LocationSummary]]:
-    """Fetch generation and location metadata for all sites from the Data Platform.
-
-    If `loc_map_cache` is provided, it is reused instead of re-listing every location in
-    the Data Platform (a `.get()` call happens once per site, so re-fetching the full
-    location list on every call would multiply DP round-trips by the number of sites).
-
-    Returns a tuple of (generation dataframe, location metadata dict, the location map
-    used) so the caller can cache the location map for subsequent calls.
-    """
-    async with get_dataplatform_client() as client:
-        loc_map = loc_map_cache if loc_map_cache is not None else await fetch_dp_location_map(
-            client
-        )
-        df = await get_generation_from_dp(client, loc_map, sites, start_ts, end_ts)
-
-    locations = get_locations_from_dp(loc_map, sites)
-
-    return df, locations, loc_map
 
 
 class DbPvDataSource(PvDataSource):
@@ -149,16 +118,10 @@ class DbPvDataSource(PvDataSource):
             sites = self._load_sites(session, site_uuids)
 
         if read_from_dp:
-            if start_ts is None or end_ts is None:
-                raise ValueError(
-                    "Reading from the Data Platform requires both `start_ts` and `end_ts`"
-                )
-            if self._dp_location_map is None:
-                _log.info("Reading generation and locations from the Data Platform")
-            else:
-                _log.debug("Reading generation and locations from the Data Platform (cached)")
             df, dp_locations, self._dp_location_map = _run_async(
-                _fetch_from_dp(sites, start_ts, end_ts, self._dp_location_map)
+                fetch_generation_and_locations_from_dp(
+                    sites, start_ts, end_ts, self._dp_location_map
+                )
             )
         else:
             with self._database_connection.get_session() as session:

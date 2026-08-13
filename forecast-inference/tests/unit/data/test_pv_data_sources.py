@@ -11,8 +11,8 @@ import pytest
 from pvsite_datamodel.sqlmodels import LocationSQL
 
 from forecast_inference.data.pv_data_sources import DbPvDataSource
-from forecast_inference.save.data_platform import (
-    _sanitize,
+from forecast_inference.data_platform.client import _sanitize
+from forecast_inference.data_platform.load import (
     fetch_generation_from_dp,
     fetch_location_from_dp,
 )
@@ -159,11 +159,11 @@ class TestDbPvDataSourceReadsFromDataPlatform:
 
         with (
             patch(
-                "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+                "forecast_inference.data_platform.load.get_dataplatform_client",
                 return_value=_mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
                 new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
             ),
         ):
@@ -196,11 +196,11 @@ class TestDbPvDataSourceReadsFromDataPlatform:
 
         with (
             patch(
-                "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+                "forecast_inference.data_platform.load.get_dataplatform_client",
                 return_value=_mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
                 new=AsyncMock(return_value={}),
             ),
         ):
@@ -222,7 +222,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
         site_uuid = str(dp_site.location_uuid)
 
         with patch(
-            "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+            "forecast_inference.data_platform.load.get_dataplatform_client",
         ) as mock_get_client:
             pv_data_source = DbPvDataSource(database_connection)
             result = pv_data_source.get(
@@ -265,11 +265,11 @@ class TestDbPvDataSourceReadsFromDataPlatform:
 
         with (
             patch(
-                "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+                "forecast_inference.data_platform.load.get_dataplatform_client",
                 return_value=_mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
                 new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
             ),
         ):
@@ -301,11 +301,11 @@ class TestDbPvDataSourceReadsFromDataPlatform:
 
         with (
             patch(
-                "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+                "forecast_inference.data_platform.load.get_dataplatform_client",
                 return_value=_mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
                 new=mock_fetch_loc_map,
             ),
         ):

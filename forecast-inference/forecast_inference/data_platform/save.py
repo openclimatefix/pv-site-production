@@ -1,197 +1,26 @@
-"""Data Platform operations: location management, forecaster lifecycle, and forecast saving."""
+"""Saving forecasts to the Data Platform: location management, forecaster lifecycle."""
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
-import os
-import re
-from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
 from dp_sdk.ocf import dp
-from grpclib.client import Channel
-from psp.typings import Timestamp
-from pvsite_datamodel.sqlmodels import LocationSQL
+
+from forecast_inference.data_platform.client import (
+    DataPlatformClient,
+    LocationSummary,
+    _sanitize,
+    fetch_dp_location_map,
+)
 
 log = logging.getLogger(__name__)
 
-
-def _sanitize(name: str) -> str:
-    """Sanitize location name to contain only DP-supported characters."""
-    return re.sub(r"[^a-z0-9_|]", "_", name.lower())
-
-
 # Keep this static so the adjuster and API keep working even if the app version changes.
 dp_forecaster_version = "1.4.0"
-
-# Type alias for the Data Platform client stub
-DataPlatformClient = dp.DataPlatformDataServiceStub
-
-
-@contextlib.asynccontextmanager
-async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
-    """Async context manager that opens a gRPC channel and yields a ready-to-use client.
-
-    Host and port are read from DATA_PLATFORM_HOST / DATA_PLATFORM_PORT env vars
-    (defaulting to localhost:50051).
-    """
-    channel = Channel(
-        host=os.getenv("DATA_PLATFORM_HOST", "localhost"),
-        port=int(os.getenv("DATA_PLATFORM_PORT", "50051")),
-    )
-    try:
-        yield dp.DataPlatformDataServiceStub(channel)
-    finally:
-        channel.close()
-
-
-# Type returned per location from list_locations — includes uuid and capacity.
-LocationSummary = dp.ListLocationsResponseLocationSummary
-
-
-async def fetch_dp_location_map(
-    client: DataPlatformClient,
-    location_type: dp.LocationType = dp.LocationType.SITE,
-) -> dict[str, LocationSummary]:
-    """Fetch locations from the Data Platform filtered by location type.
-
-    Returns a name → LocationSummary map. The summary includes both the UUID and
-    effective_capacity_watts, so callers avoid a second get_location gRPC call.
-    Pre-fetching once avoids separate list_locations calls for every forecast save.
-    """
-    resp = await client.list_locations(
-        dp.ListLocationsRequest(location_type_filter=[location_type])
-    )
-    return {loc.location_name: loc for loc in resp.locations}
-
-
-def _ensure_timezone_aware(ts: Timestamp) -> Timestamp:
-    """Ensure a datetime is timezone-aware UTC, as required by the Data Platform API."""
-    if ts.tzinfo is None:
-        return ts.replace(tzinfo=UTC)
-    return ts.astimezone(UTC)
-
-
-async def fetch_generation_from_dp(
-    client: DataPlatformClient,
-    loc_map: dict[str, LocationSummary],
-    site: LocationSQL,
-    start: Timestamp,
-    end: Timestamp,
-    observer_name: str | None = None,
-) -> list[tuple[Timestamp, float]]:
-    """Fetch generation (observation) data from the Data Platform for a single site."""
-    if not site.client_location_name:
-        log.warning(f"Site {site.location_uuid} has no client_location_name, skipping DP")
-        return []
-
-    name = _sanitize(site.client_location_name)
-    summary = loc_map.get(name)
-    if not summary:
-        log.warning(f"Site {name!r} not found in Data Platform")
-        return []
-
-    actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "pv_site_api")
-
-    start_dt = _ensure_timezone_aware(start)
-    end_dt = _ensure_timezone_aware(end)
-    max_window = timedelta(days=7)
-
-    chunks = []
-    curr_start = start_dt
-    while curr_start < end_dt:
-        curr_end = min(curr_start + max_window, end_dt)
-        chunks.append((curr_start, curr_end))
-        curr_start = curr_end
-
-    data = []
-    for c_start, c_end in chunks:
-        req = dp.GetObservationsAsTimeseriesRequest(
-            location_uuid=summary.location_uuid,
-            energy_source=dp.EnergySource.SOLAR,
-            observer_name=actual_observer_name,
-            time_window=dp.TimeWindow(
-                start_timestamp_utc=c_start,
-                end_timestamp_utc=c_end,
-            ),
-        )
-        res = await client.get_observations_as_timeseries(req)
-
-        if not res.values:
-            continue
-
-        cap_w = res.values[0].effective_capacity_watts
-        for val in res.values:
-            t = val.timestamp_utc
-            power_kw = (val.value_fraction * cap_w) / 1000.0
-            data.append((t, power_kw))
-
-    return data
-
-
-def fetch_location_from_dp(
-    loc_map: dict[str, LocationSummary],
-    site: LocationSQL,
-) -> dict | None:
-    """Look up a site's location metadata (latitude, longitude, capacity_kw) in the DP."""
-    if not site.client_location_name:
-        return None
-
-    name = _sanitize(site.client_location_name)
-    summary = loc_map.get(name)
-    if not summary:
-        return None
-
-    return {
-        "latitude": summary.latlng.latitude,
-        "longitude": summary.latlng.longitude,
-        "capacity_kw": summary.effective_capacity_watts / 1000.0,
-    }
-
-
-async def get_generation_from_dp(
-    client: DataPlatformClient,
-    loc_map: dict[str, LocationSummary],
-    sites: list[LocationSQL],
-    start_ts: Timestamp,
-    end_ts: Timestamp,
-) -> pd.DataFrame:
-    """Fetch generation values for all sites from the Data Platform, as a dataframe.
-
-    Returns a dataframe of (id, ts, power) records, one row per generation value found.
-    """
-    generations = await asyncio.gather(
-        *[fetch_generation_from_dp(client, loc_map, site, start_ts, end_ts) for site in sites]
-    )
-
-    records = [
-        {"id": str(site.location_uuid), "ts": t.replace(tzinfo=None), "power": power_kw}
-        for site, site_generation in zip(sites, generations)
-        for t, power_kw in site_generation
-    ]
-    return pd.DataFrame.from_records(records, columns=["id", "ts", "power"])
-
-
-def get_locations_from_dp(
-    loc_map: dict[str, LocationSummary],
-    sites: list[LocationSQL],
-) -> dict[str, dict]:
-    """Look up location metadata (latitude, longitude, capacity_kw) for all sites from the DP.
-
-    Purely local dict lookups against an already-fetched `loc_map` — no network calls.
-
-    Returns a dict of location_uuid (as in our database) -> {latitude, longitude, capacity_kw},
-    for sites that were found in the Data Platform.
-    """
-    return {
-        str(site.location_uuid): location
-        for site in sites
-        if (location := fetch_location_from_dp(loc_map, site)) is not None
-    }
 
 
 async def resolve_target_uuid(
@@ -447,5 +276,3 @@ async def save_forecast_to_dataplatform(
 
     await client.create_forecast(base_request)
     log.info(f"Save complete for location={client_location_name!r}")
-
-
