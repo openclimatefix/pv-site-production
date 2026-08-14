@@ -23,7 +23,7 @@ from forecast_inference.data.nwp_data_sources import (
     download_and_add_osgb_to_nwp_data_source,
 )
 from forecast_inference.data.pv_data_sources import DbPvDataSource
-from forecast_inference.save import (
+from forecast_inference.data_platform import (
     DataPlatformClient,
     LocationSummary,
     fetch_dp_location_map,

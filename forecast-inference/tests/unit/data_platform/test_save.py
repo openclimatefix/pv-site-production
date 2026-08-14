@@ -7,7 +7,8 @@ import datetime as dt
 
 import pytest
 
-from forecast_inference.save.data_platform import _sanitize, prepare_forecast_values
+from forecast_inference.data_platform.client import _sanitize
+from forecast_inference.data_platform.save import prepare_forecast_values
 
 
 class TestSanitization:

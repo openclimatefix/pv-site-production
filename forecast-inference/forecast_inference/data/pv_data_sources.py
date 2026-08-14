@@ -2,8 +2,11 @@
 PV Data Source
 """
 
+import asyncio
+import concurrent.futures
 import copy
 import logging
+import os
 from uuid import UUID
 
 import numpy as np
@@ -14,6 +17,9 @@ from psp.typings import PvId, Timestamp
 from pvsite_datamodel.connection import DatabaseConnection
 from pvsite_datamodel.sqlmodels import GenerationSQL, LocationSQL
 from sqlalchemy.orm import Session
+
+from forecast_inference.data_platform.client import LocationSummary
+from forecast_inference.data_platform.load import fetch_generation_and_locations_from_dp
 
 META_KEYS = [
     "longitude",
@@ -26,6 +32,20 @@ META_KEYS = [
 _log = logging.getLogger(__name__)
 
 
+def _run_async(coro):
+    """Run an async coroutine safely, even if an event loop is already running in the current thread."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(asyncio.run, coro).result()
+    else:
+        return asyncio.run(coro)
+
+
 def _to_float(x: float | None) -> float:
     """Return `np.nan` when `None."""
     if x is None:
@@ -33,20 +53,15 @@ def _to_float(x: float | None) -> float:
     return x
 
 
-def _get_site_client_id_to_uuid_mapping(
-    session: Session,
-) -> dict[str, str]:
-    """Construct a mapping from site_client_id to site_uuid.
-
-    This is needed because our meta data is still by client_site_id.
-    """
-    query = session.query(LocationSQL)
-    mapping = {str(row.client_location_id): str(row.location_uuid) for row in query}
-    return mapping
-
-
 class DbPvDataSource(PvDataSource):
-    """PV Data Source that reads from our database."""
+    """PV Data Source that reads from our database.
+
+    When the `READ_FROM_DATA_PLATFORM` environment variable is set to "true", generation
+    power values and location metadata (latitude, longitude, capacity_kw) are instead
+    read from the Data Platform, matched to each site via its `client_location_name`.
+    `tilt` and `orientation` have no Data Platform equivalent, so they always come from
+    the database.
+    """
 
     def __init__(
         self,
@@ -55,6 +70,21 @@ class DbPvDataSource(PvDataSource):
         """Constructor"""
         self._database_connection = database_connection
         self._max_ts: Timestamp | None = None
+        # Cached across calls so a run over many sites doesn't re-list every DP location
+        # on every single `.get()` call (which happens once per site).
+        self._dp_location_map: dict[str, LocationSummary] | None = None
+
+    def _load_sites(self, session: Session, site_uuids: list[str]) -> list[LocationSQL]:
+        """Fetch and validate the LocationSQL rows for the given site uuids."""
+        site_query = session.query(LocationSQL).filter(
+            LocationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
+        )
+        sites = site_query.all()
+
+        if len(sites) != len(site_uuids):
+            raise RuntimeError(f"We found only {len(sites)} of {len(site_uuids)}, aborting!")
+
+        return sites
 
     def get(
         self,
@@ -76,51 +106,54 @@ class DbPvDataSource(PvDataSource):
 
         site_uuids = pv_ids
 
+        read_from_dp = os.getenv("READ_FROM_DATA_PLATFORM", "false").lower() == "true"
+
         _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
+
+        # Get the site info once up front, regardless of which branch below runs. For the
+        # DP branch, this also lets the DB session close before we make the (potentially
+        # slow) Data Platform network calls, rather than holding a pooled DB connection
+        # idle for the duration of the DP round-trip.
         with self._database_connection.get_session() as session:
-            query = session.query(GenerationSQL).filter(
-                GenerationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
+            sites = self._load_sites(session, site_uuids)
+
+        if read_from_dp:
+            df, dp_locations, self._dp_location_map = _run_async(
+                fetch_generation_and_locations_from_dp(
+                    sites, start_ts, end_ts, self._dp_location_map
+                )
             )
+        else:
+            with self._database_connection.get_session() as session:
+                query = session.query(GenerationSQL).filter(
+                    GenerationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
+                )
 
-            if start_ts is not None:
-                query = query.filter(GenerationSQL.start_utc >= start_ts)
+                if start_ts is not None:
+                    query = query.filter(GenerationSQL.start_utc >= start_ts)
 
-            if end_ts is not None:
-                # Note that we still filter on the `start_utc` field. This is because we assume that
-                # the "generation" power is punctual.
-                query = query.filter(GenerationSQL.start_utc < end_ts)
+                if end_ts is not None:
+                    query = query.filter(GenerationSQL.start_utc < end_ts)
 
-            generations = query.all()
+                generations = query.all()
+                dp_locations = {}
 
-            # Get the site info in a separate query. We don't JOIN on `generation` in case there
-            # is no generation data.
+                _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
 
-            site_query = session.query(LocationSQL).filter(
-                LocationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
-            )
-            sites = site_query.all()
-
-        if len(sites) != len(site_uuids):
-            raise RuntimeError(f"We found only {len(sites)} of {len(site_uuids)}, aborting!")
-
-        _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
-
-        # Build a pandas dataframe of id, timestamp and power.
-        # This makes it easy to convert to an xarray.
-        df = pd.DataFrame.from_records(
-            [
-                {
-                    "id": str(g.location_uuid),
-                    # We remove the timezone information since otherwise the timestamp index gets
-                    # converted to an "object" index later. In any case we should have everything in
-                    # UTC.
-                    "ts": g.start_utc.replace(tzinfo=None) if g.start_utc is not None else None,
-                    "power": g.generation_power_kw,
-                }
-                for g in generations
-            ],
-            columns=["id", "ts", "power"],
-        )
+                # Build a pandas dataframe of id, timestamp and power.
+                df = pd.DataFrame.from_records(
+                    [
+                        {
+                            "id": str(g.location_uuid),
+                            "ts": g.start_utc.replace(tzinfo=None)
+                            if g.start_utc is not None
+                            else None,
+                            "power": g.generation_power_kw,
+                        }
+                        for g in generations
+                    ],
+                    columns=["id", "ts", "power"],
+                )
 
         df = df.set_index(["id", "ts"])
 
@@ -136,9 +169,16 @@ class DbPvDataSource(PvDataSource):
         # Make sure the ids are in the index. They won't be in the case where the is no data.
         da = da.reindex(id=pv_ids)
 
-        # Add the metadata associated with the PV systems.
+        # Add the metadata associated with the PV systems. Prefer values fetched from the Data
+        # Platform (when reading from there), falling back to the database for sites the DP
+        # doesn't know about, and for the fields (tilt, orientation) it doesn't hold at all.
         meta = {
-            str(site.location_uuid): {key: _to_float(getattr(site, key)) for key in META_KEYS}
+            str(site.location_uuid): {
+                key: dp_locations.get(str(site.location_uuid), {}).get(
+                    key, _to_float(getattr(site, key))
+                )
+                for key in META_KEYS
+            }
             for site in sites
         }
 

@@ -1,70 +1,26 @@
-"""Data Platform operations: location management, forecaster lifecycle, and forecast saving."""
+"""Saving forecasts to the Data Platform: location management, forecaster lifecycle."""
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
-import os
-import re
-from collections.abc import AsyncIterator
 from datetime import datetime, timedelta
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
-from dp_sdk.ocf import dp
-from grpclib.client import Channel
+from ocf import dp
+
+from forecast_inference.data_platform.client import (
+    DataPlatformClient,
+    LocationSummary,
+    _sanitize,
+    fetch_dp_location_map,
+)
 
 log = logging.getLogger(__name__)
 
-
-def _sanitize(name: str) -> str:
-    """Sanitize location name to contain only DP-supported characters."""
-    return re.sub(r"[^a-z0-9_|]", "_", name.lower())
-
-
 # Keep this static so the adjuster and API keep working even if the app version changes.
 dp_forecaster_version = "1.4.0"
-
-# Type alias for the Data Platform client stub
-DataPlatformClient = dp.DataPlatformDataServiceStub
-
-
-@contextlib.asynccontextmanager
-async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
-    """Async context manager that opens a gRPC channel and yields a ready-to-use client.
-
-    Host and port are read from DATA_PLATFORM_HOST / DATA_PLATFORM_PORT env vars
-    (defaulting to localhost:50051).
-    """
-    channel = Channel(
-        host=os.getenv("DATA_PLATFORM_HOST", "localhost"),
-        port=int(os.getenv("DATA_PLATFORM_PORT", "50051")),
-    )
-    try:
-        yield dp.DataPlatformDataServiceStub(channel)
-    finally:
-        channel.close()
-
-
-# Type returned per location from list_locations — includes uuid and capacity.
-LocationSummary = dp.ListLocationsResponseLocationSummary
-
-
-async def fetch_dp_location_map(
-    client: DataPlatformClient,
-    location_type: dp.LocationType = dp.LocationType.SITE,
-) -> dict[str, LocationSummary]:
-    """Fetch locations from the Data Platform filtered by location type.
-
-    Returns a name → LocationSummary map. The summary includes both the UUID and
-    effective_capacity_watts, so callers avoid a second get_location gRPC call.
-    Pre-fetching once avoids separate list_locations calls for every forecast save.
-    """
-    resp = await client.list_locations(
-        dp.ListLocationsRequest(location_type_filter=[location_type])
-    )
-    return {loc.location_name: loc for loc in resp.locations}
 
 
 async def resolve_target_uuid(
@@ -304,6 +260,7 @@ async def save_forecast_to_dataplatform(
         log.warning("no forecast values after preparation")
         return
 
+
     base_request = dp.CreateForecastRequest(
         forecaster=forecaster,
         location_uuid=target_uuid_str,
@@ -318,7 +275,12 @@ async def save_forecast_to_dataplatform(
         f"location={target_uuid_str}  values={len(forecast_values)}",
     )
 
-    await client.create_forecast(base_request)
+    try:
+        await client.create_forecast(base_request)
+    except Exception:
+        log.exception(
+            "DP CreateForecast FAILED | "
+            f"location_uuid={target_uuid_str}  "
+            f"init_time_utc={init_time_utc_dt.isoformat()}")
+        raise
     log.info(f"Save complete for location={client_location_name!r}")
-
-
