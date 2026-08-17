@@ -22,15 +22,19 @@ poetry run python forecast_inference/app.py
 
 Need to set
 - OCF_ENVIRONMENT
-- OCF_PV_DB_URL
+- DATA_PLATFORM_HOST / DATA_PLATFORM_PORT
 - NWP_ZARR_PATH
 - SAVE_TO_DATA_PLATFORM
 
 Optional:
-- `READ_FROM_DATA_PLATFORM`
-- `OBSERVER_NAME` (default `pv_site_api`)
-  observations from. Only used when `READ_FROM_DATA_PLATFORM=true` — has no effect
-  otherwise.
+- `OBSERVER_NAME` (default `pv_site_api`): the Data Platform observer to read generation
+  observations from.
+
+This service reads sites, generation, and location metadata (latitude, longitude, capacity)
+exclusively from the Data Platform — there is no database dependency for the live run. `tilt`
+and `orientation` have no native Data Platform field; they're read from each location's
+`metadata` when present (see `pv-site-api`'s `create_location`/`update_location`), and default
+to unset for sites not yet backfilled with that metadata.
 
 
 ## Development
