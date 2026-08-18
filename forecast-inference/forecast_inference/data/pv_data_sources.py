@@ -7,7 +7,6 @@ import concurrent.futures
 import copy
 import logging
 
-import numpy as np
 import xarray as xr
 from psp.data_sources.pv import PvDataSource, min_timestamp
 from psp.typings import PvId, Timestamp
@@ -51,9 +50,10 @@ class DataPlatformPvDataSource(PvDataSource):
     """PV Data Source that reads exclusively from the Data Platform — no database involved.
 
     `pv_id` is the Data Platform's own `location_uuid`, not a site database uuid. `tilt` and
-    `orientation` have no native Data Platform field; when available they're read from a
-    location's `metadata` Struct (see `pv-site-api`'s `create_location`/`update_location`,
-    which write them there), defaulting to `NaN` when not yet present in that metadata.
+    `orientation` have no native Data Platform field; they're read from a location's `metadata`
+    Struct (see `pv-site-api`'s `create_location`/`update_location`, which write them there).
+    A site missing tilt/orientation (or any other required metadata) in the Data Platform
+    causes `.get()` to raise, rather than silently predicting on `NaN` inputs.
     """
 
     def __init__(self):
@@ -121,13 +121,21 @@ class DataPlatformPvDataSource(PvDataSource):
         da = da.reindex(id=pv_ids)
 
         # Add the metadata associated with the PV systems, all sourced from the Data Platform.
-        # tilt/orientation default to NaN when not present in a location's DP metadata.
-        meta = {
-            location_uuid: {
-                key: dp_locations.get(location_uuid, {}).get(key, np.nan) for key in META_KEYS
-            }
-            for location_uuid in location_uuids
-        }
+        # A `NaN` tilt/orientation/lat/long/capacity makes pvlib's irradiance calculation
+        # return `NaN` for the whole plane-of-array irradiance, which then silently propagates
+        # into `NaN` for every normalized power value and therefore every prediction — so a
+        # site missing any of these in its DP metadata (e.g. not yet backfilled with
+        # tilt/orientation) fails hard here instead of producing a garbage forecast.
+        meta: dict[str, dict] = {}
+        for location_uuid in location_uuids:
+            location_data = dp_locations.get(location_uuid, {})
+            missing = [key for key in META_KEYS if key not in location_data]
+            if missing:
+                raise RuntimeError(
+                    f"Data Platform location {location_uuid!r} is missing {missing} in its "
+                    "metadata — cannot compute a forecast without them."
+                )
+            meta[location_uuid] = {key: location_data[key] for key in META_KEYS}
 
         # Add the metadata as coordinates to the PVs in the xr.Dataset.
         da = da.assign_coords(

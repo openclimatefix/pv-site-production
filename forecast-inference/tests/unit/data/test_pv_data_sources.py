@@ -4,7 +4,6 @@ import asyncio
 import datetime as dt
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import numpy as np
 import pytest
 
 from forecast_inference.data.pv_data_sources import DataPlatformPvDataSource
@@ -23,6 +22,15 @@ def _mock_dp_context(client):
     return ctx
 
 
+def _tilt_orientation_metadata_fields(tilt=30.0, orientation=180.0):
+    """Metadata fields dict with tilt/orientation set, as required by `.get()`."""
+    tilt_value = MagicMock()
+    tilt_value.number_value = tilt
+    orientation_value = MagicMock()
+    orientation_value.number_value = orientation
+    return {"tilt": tilt_value, "orientation": orientation_value}
+
+
 def _mock_summary(
     location_uuid=dp_location_uuid,
     location_name=dp_location_name,
@@ -31,14 +39,20 @@ def _mock_summary(
     capacity_watts=4000,
     metadata_fields=None,
 ):
-    """Build a MagicMock DP `LocationSummary`, with a real (non-auto-mocking) metadata dict."""
+    """Build a MagicMock DP `LocationSummary`, with a real (non-auto-mocking) metadata dict.
+
+    Defaults to having tilt/orientation set in metadata (required by `.get()`, which now
+    raises when they're missing) — pass `metadata_fields={}` explicitly to test that case.
+    """
     mock_summary = MagicMock()
     mock_summary.location_uuid = location_uuid
     mock_summary.location_name = location_name
     mock_summary.latlng.latitude = latitude
     mock_summary.latlng.longitude = longitude
     mock_summary.effective_capacity_watts = capacity_watts
-    mock_summary.metadata.fields = metadata_fields or {}
+    mock_summary.metadata.fields = (
+        metadata_fields if metadata_fields is not None else _tilt_orientation_metadata_fields()
+    )
     return mock_summary
 
 
@@ -46,7 +60,9 @@ class TestBuildLocationMetadata:
     """Test the module-level `build_location_metadata` helper."""
 
     def test_returns_latitude_longitude_and_capacity(self):
-        summary = _mock_summary(latitude=52.5, longitude=-2.5, capacity_watts=5000)
+        summary = _mock_summary(
+            latitude=52.5, longitude=-2.5, capacity_watts=5000, metadata_fields={}
+        )
 
         location = build_location_metadata(summary)
 
@@ -134,10 +150,8 @@ class TestDataPlatformPvDataSource:
         assert result["latitude"].sel(id=dp_location_uuid).item() == pytest.approx(52.5)
         assert result["longitude"].sel(id=dp_location_uuid).item() == pytest.approx(-2.5)
         assert result["capacity"].sel(id=dp_location_uuid).item() == pytest.approx(5.0)
-
-        # No tilt/orientation in DP metadata for this site → NaN, no database fallback exists.
-        assert np.isnan(result["tilt"].sel(id=dp_location_uuid).item())
-        assert np.isnan(result["orientation"].sel(id=dp_location_uuid).item())
+        assert result["tilt"].sel(id=dp_location_uuid).item() == pytest.approx(30.0)
+        assert result["orientation"].sel(id=dp_location_uuid).item() == pytest.approx(180.0)
 
     def test_get_reads_tilt_and_orientation_from_dp_metadata_when_present(self):
         mock_client = AsyncMock()
@@ -173,7 +187,10 @@ class TestDataPlatformPvDataSource:
         assert result["tilt"].sel(id=dp_location_uuid).item() == pytest.approx(35.0)
         assert result["orientation"].sel(id=dp_location_uuid).item() == pytest.approx(170.0)
 
-    def test_get_site_not_found_in_dp(self):
+    def test_get_site_not_found_in_dp_raises(self):
+        """A site missing from the Data Platform entirely has no metadata at all, so `.get()`
+        must fail hard rather than silently predicting on `NaN` inputs.
+        """
         mock_client = AsyncMock()
 
         with (
@@ -185,16 +202,41 @@ class TestDataPlatformPvDataSource:
                 "forecast_inference.data_platform.load.fetch_dp_location_map",
                 new=AsyncMock(return_value={}),
             ),
+            pytest.raises(RuntimeError, match=dp_location_uuid),
         ):
             pv_data_source = DataPlatformPvDataSource()
-            result = pv_data_source.get(
+            pv_data_source.get(
                 [dp_location_uuid],
                 start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
                 end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
             )
 
         mock_client.get_observations_as_timeseries.assert_not_called()
-        assert np.isnan(result["latitude"].sel(id=dp_location_uuid).item())
+
+    def test_get_raises_when_tilt_and_orientation_missing_from_dp_metadata(self):
+        summary = _mock_summary(metadata_fields={})
+        mock_client = AsyncMock()
+        mock_obs_resp = MagicMock()
+        mock_obs_resp.values = []
+        mock_client.get_observations_as_timeseries.return_value = mock_obs_resp
+
+        with (
+            patch(
+                "forecast_inference.data_platform.load.get_dataplatform_client",
+                return_value=_mock_dp_context(mock_client),
+            ),
+            patch(
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
+                new=AsyncMock(return_value={dp_location_name: summary}),
+            ),
+            pytest.raises(RuntimeError, match="tilt"),
+        ):
+            pv_data_source = DataPlatformPvDataSource()
+            pv_data_source.get(
+                [dp_location_uuid],
+                start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
+                end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
+            )
 
     def test_get_works_when_called_from_within_a_running_event_loop(self):
         """Regression test: `app.py` calls `model.predict()` (and so `.get()`) synchronously

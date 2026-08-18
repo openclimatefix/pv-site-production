@@ -53,7 +53,5 @@ async def fetch_dp_location_map(
     effective_capacity_watts, so callers avoid a second get_location gRPC call.
     Pre-fetching once avoids separate list_locations calls for every forecast save.
     """
-    resp = await client.list_locations(
-        dp.ListLocationsRequest(location_type_filter=[location_type])
-    )
+    resp = await client.list_locations(dp.ListLocationsRequest(location_type_filter=location_type))
     return {loc.location_name: loc for loc in resp.locations}

@@ -32,13 +32,18 @@ def _mock_dp_environment(now, n_generations=100):
     dp_location_uuid = "dp-uuid-app-test"
     dp_location_name = "test_site"
 
+    tilt_value = MagicMock()
+    tilt_value.number_value = 30.0
+    orientation_value = MagicMock()
+    orientation_value.number_value = 180.0
+
     summary = MagicMock()
     summary.location_uuid = dp_location_uuid
     summary.location_name = dp_location_name
     summary.latlng.latitude = 51.0
     summary.latlng.longitude = 3.0
     summary.effective_capacity_watts = 4000
-    summary.metadata.fields = {}
+    summary.metadata.fields = {"tilt": tilt_value, "orientation": orientation_value}
 
     obs_values = []
     for i in range(n_generations):
