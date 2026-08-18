@@ -53,7 +53,17 @@ async def fetch_dp_location_map(
     effective_capacity_watts, so callers avoid a second get_location gRPC call.
     Pre-fetching once avoids separate list_locations calls for every forecast save.
     """
-    resp = await client.list_locations(
-        dp.ListLocationsRequest(location_type_filter=[location_type])
-    )
+    resp = await client.list_locations(dp.ListLocationsRequest(location_type_filter=location_type))
     return {loc.location_name: loc for loc in resp.locations}
+
+
+async def fetch_dp_location_map_by_uuid(
+    client: DataPlatformClient,
+    location_type: dp.LocationType = dp.LocationType.SITE,
+) -> dict[str, LocationSummary]:
+    """Same as `fetch_dp_location_map`, but keyed by `location_uuid` instead of name.
+
+    Used by callers that look sites up by id (e.g. `pv_id`) rather than by client name.
+    """
+    name_map = await fetch_dp_location_map(client, location_type)
+    return {summary.location_uuid: summary for summary in name_map.values()}

@@ -6,20 +6,20 @@ import asyncio
 import concurrent.futures
 import copy
 import logging
-import os
-from uuid import UUID
 
-import numpy as np
-import pandas as pd
 import xarray as xr
 from psp.data_sources.pv import PvDataSource, min_timestamp
 from psp.typings import PvId, Timestamp
-from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import GenerationSQL, LocationSQL
-from sqlalchemy.orm import Session
 
-from forecast_inference.data_platform.client import LocationSummary
-from forecast_inference.data_platform.load import fetch_generation_and_locations_from_dp
+from forecast_inference.data_platform.client import (
+    LocationSummary,
+    fetch_dp_location_map_by_uuid,
+    get_dataplatform_client,
+)
+from forecast_inference.data_platform.load import (
+    fetch_generation_and_locations_from_dp,
+    get_client_location_name,
+)
 
 META_KEYS = [
     "longitude",
@@ -46,45 +46,34 @@ def _run_async(coro):
         return asyncio.run(coro)
 
 
-def _to_float(x: float | None) -> float:
-    """Return `np.nan` when `None."""
-    if x is None:
-        return np.nan
-    return x
+class DataPlatformPvDataSource(PvDataSource):
+    """PV Data Source that reads exclusively from the Data Platform — no database involved.
 
-
-class DbPvDataSource(PvDataSource):
-    """PV Data Source that reads from our database.
-
-    When the `READ_FROM_DATA_PLATFORM` environment variable is set to "true", generation
-    power values and location metadata (latitude, longitude, capacity_kw) are instead
-    read from the Data Platform, matched to each site via its `client_location_name`.
-    `tilt` and `orientation` have no Data Platform equivalent, so they always come from
-    the database.
+    `pv_id` is the Data Platform's own `location_uuid`, not a site database uuid. `tilt` and
+    `orientation` have no native Data Platform field; they're read from a location's `metadata`
+    Struct (see `pv-site-api`'s `create_location`/`update_location`, which write them there).
+    A site missing tilt/orientation (or any other required metadata) in the Data Platform
+    causes `.get()` to raise, rather than silently predicting on `NaN` inputs.
     """
 
-    def __init__(
-        self,
-        database_connection: DatabaseConnection,
-    ):
+    def __init__(self):
         """Constructor"""
-        self._database_connection = database_connection
         self._max_ts: Timestamp | None = None
-        # Cached across calls so a run over many sites doesn't re-list every DP location
-        # on every single `.get()` call (which happens once per site).
+        # Cached across calls, keyed by DP location_uuid, so a run over many sites doesn't
+        # re-list every DP location on every single `.get()` call (which happens once per site).
         self._dp_location_map: dict[str, LocationSummary] | None = None
 
-    def _load_sites(self, session: Session, site_uuids: list[str]) -> list[LocationSQL]:
-        """Fetch and validate the LocationSQL rows for the given site uuids."""
-        site_query = session.query(LocationSQL).filter(
-            LocationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
-        )
-        sites = site_query.all()
+    def _get_location_map(self) -> dict[str, LocationSummary]:
+        """Fetch (and cache) all Data Platform SITE locations, keyed by `location_uuid`."""
+        if self._dp_location_map is None:
 
-        if len(sites) != len(site_uuids):
-            raise RuntimeError(f"We found only {len(sites)} of {len(site_uuids)}, aborting!")
+            async def _fetch():
+                async with get_dataplatform_client() as client:
+                    return await fetch_dp_location_map_by_uuid(client)
 
-        return sites
+            self._dp_location_map = _run_async(_fetch())
+
+        return self._dp_location_map
 
     def get(
         self,
@@ -104,90 +93,53 @@ class DbPvDataSource(PvDataSource):
         else:
             was_scalar = False
 
-        site_uuids = pv_ids
+        location_uuids = pv_ids
 
-        read_from_dp = os.getenv("READ_FROM_DATA_PLATFORM", "false").lower() == "true"
+        _log.debug(
+            f"Getting data from {start_ts} to {end_ts} for {len(location_uuids)} PVs "
+            "from the Data Platform"
+        )
 
-        _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
-
-        # Get the site info once up front, regardless of which branch below runs. For the
-        # DP branch, this also lets the DB session close before we make the (potentially
-        # slow) Data Platform network calls, rather than holding a pooled DB connection
-        # idle for the duration of the DP round-trip.
-        with self._database_connection.get_session() as session:
-            sites = self._load_sites(session, site_uuids)
-
-        if read_from_dp:
-            df, dp_locations, self._dp_location_map = _run_async(
-                fetch_generation_and_locations_from_dp(
-                    sites, start_ts, end_ts, self._dp_location_map
-                )
+        df, dp_locations, self._dp_location_map = _run_async(
+            fetch_generation_and_locations_from_dp(
+                location_uuids, start_ts, end_ts, self._dp_location_map
             )
-        else:
-            with self._database_connection.get_session() as session:
-                query = session.query(GenerationSQL).filter(
-                    GenerationSQL.location_uuid.in_([UUID(x) for x in site_uuids])
-                )
-
-                if start_ts is not None:
-                    query = query.filter(GenerationSQL.start_utc >= start_ts)
-
-                if end_ts is not None:
-                    query = query.filter(GenerationSQL.start_utc < end_ts)
-
-                generations = query.all()
-                dp_locations = {}
-
-                _log.debug(f"Found {len(generations)} generation data for {len(site_uuids)} PVs")
-
-                # Build a pandas dataframe of id, timestamp and power.
-                df = pd.DataFrame.from_records(
-                    [
-                        {
-                            "id": str(g.location_uuid),
-                            "ts": g.start_utc.replace(tzinfo=None)
-                            if g.start_utc is not None
-                            else None,
-                            "power": g.generation_power_kw,
-                        }
-                        for g in generations
-                    ],
-                    columns=["id", "ts", "power"],
-                )
+        )
 
         df = df.set_index(["id", "ts"])
 
         # Remove duplicate rows.
-        # TODO This should not be necessary: we should be able to remove it once we insure the
-        # database can not have duplicates.
-        # See https://github.com/openclimatefix/pvsite-datamodel/issues/34
         duplicates = df.index.duplicated(keep="first")
         df = df[~duplicates]
 
         da = xr.Dataset.from_dataframe(df)
 
-        # Make sure the ids are in the index. They won't be in the case where the is no data.
+        # Make sure the ids are in the index. They won't be in the case where there is no data.
         da = da.reindex(id=pv_ids)
 
-        # Add the metadata associated with the PV systems. Prefer values fetched from the Data
-        # Platform (when reading from there), falling back to the database for sites the DP
-        # doesn't know about, and for the fields (tilt, orientation) it doesn't hold at all.
-        meta = {
-            str(site.location_uuid): {
-                key: dp_locations.get(str(site.location_uuid), {}).get(
-                    key, _to_float(getattr(site, key))
+        # Add the metadata associated with the PV systems, all sourced from the Data Platform.
+        # A `NaN` tilt/orientation/lat/long/capacity makes pvlib's irradiance calculation
+        # return `NaN` for the whole plane-of-array irradiance, which then silently propagates
+        # into `NaN` for every normalized power value and therefore every prediction — so a
+        # site missing any of these in its DP metadata (e.g. not yet backfilled with
+        # tilt/orientation) fails hard here instead of producing a garbage forecast.
+        meta: dict[str, dict] = {}
+        for location_uuid in location_uuids:
+            location_data = dp_locations.get(location_uuid, {})
+            missing = [key for key in META_KEYS if key not in location_data]
+            if missing:
+                raise RuntimeError(
+                    f"Data Platform location {location_uuid!r} is missing {missing} in its "
+                    "metadata — cannot compute a forecast without them."
                 )
-                for key in META_KEYS
-            }
-            for site in sites
-        }
+            meta[location_uuid] = {key: location_data[key] for key in META_KEYS}
 
         # Add the metadata as coordinates to the PVs in the xr.Dataset.
         da = da.assign_coords(
             {
                 key: (
                     "id",
-                    [meta[site_uuid][key] for site_uuid in site_uuids],
+                    [meta[location_uuid][key] for location_uuid in location_uuids],
                 )
                 for key in META_KEYS
             }
@@ -204,32 +156,26 @@ class DbPvDataSource(PvDataSource):
         return da
 
     def get_site_metadata(self) -> dict[str, dict]:
-        """Fetch client_location_name, capacity_kw, latitude, longitude for all active UK sites.
+        """Fetch client_location_name, capacity_kw, latitude, longitude for all SITE locations.
 
-        Returns a mapping of pv_id (location_uuid str) to a metadata dict.
+        Returns a mapping of pv_id (Data Platform location_uuid) to a metadata dict.
         """
-        with self._database_connection.get_session() as session:
-            query = (
-                session.query(LocationSQL)
-                .where(LocationSQL.country == "uk")
-                .where(LocationSQL.active)
-                .all()
-            )
-            return {
-                str(site.location_uuid): {
-                    "client_location_name": site.client_location_name,
-                    "capacity_kw": site.capacity_kw,
-                    "latitude": site.latitude,
-                    "longitude": site.longitude,
-                }
-                for site in query
+        loc_map = self._get_location_map()
+        return {
+            location_uuid: {
+                "client_location_name": get_client_location_name(summary),
+                "capacity_kw": summary.effective_capacity_watts / 1000.0,
+                "latitude": summary.latlng.latitude,
+                "longitude": summary.latlng.longitude,
             }
+            for location_uuid, summary in loc_map.items()
+        }
 
     def list_pv_ids(self) -> list[PvId]:
-        """List all the PV ids"""
-        site_uuids = list(self.get_site_metadata().keys())
-        _log.debug("%i site_uuids from DB", len(site_uuids))
-        return site_uuids
+        """List all the PV ids (Data Platform location_uuids)."""
+        location_uuids = list(self._get_location_map().keys())
+        _log.debug("%i location_uuids from the Data Platform", len(location_uuids))
+        return location_uuids
 
     def min_ts(self) -> Timestamp:
         """Return the earliest timestamp of the data."""
