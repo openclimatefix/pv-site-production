@@ -21,5 +21,3 @@ nwp:
       - si10
 
 model_path: tests/fixtures/psp_model_fixture.pkl
-
-pv_db_url: ${OCF_PV_DB_URL}

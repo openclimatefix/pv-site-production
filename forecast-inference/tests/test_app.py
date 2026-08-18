@@ -10,16 +10,11 @@ from freezegun import freeze_time
 
 from forecast_inference.app import main
 from forecast_inference.utils.testing import run_click_script
+from tests.dp_test_helpers import mock_dp_context, tilt_orientation_metadata_fields
 
 CONFIG_FIXTURES = [
     x for x in pathlib.Path("tests/fixtures/model_configs").iterdir() if x.suffix == ".yaml"
 ]
-
-
-def _mock_dp_context(client):
-    ctx = AsyncMock()
-    ctx.__aenter__.return_value = client
-    return ctx
 
 
 @contextmanager
@@ -32,18 +27,13 @@ def _mock_dp_environment(now, n_generations=100):
     dp_location_uuid = "dp-uuid-app-test"
     dp_location_name = "test_site"
 
-    tilt_value = MagicMock()
-    tilt_value.number_value = 30.0
-    orientation_value = MagicMock()
-    orientation_value.number_value = 180.0
-
     summary = MagicMock()
     summary.location_uuid = dp_location_uuid
     summary.location_name = dp_location_name
     summary.latlng.latitude = 51.0
     summary.latlng.longitude = 3.0
     summary.effective_capacity_watts = 4000
-    summary.metadata.fields = {"tilt": tilt_value, "orientation": orientation_value}
+    summary.metadata.fields = tilt_orientation_metadata_fields()
 
     obs_values = []
     for i in range(n_generations):
@@ -58,24 +48,24 @@ def _mock_dp_environment(now, n_generations=100):
     mock_client = AsyncMock()
     mock_client.get_observations_as_timeseries.return_value = mock_obs_resp
 
-    loc_map = {dp_location_name: summary}
+    loc_map_by_uuid = {dp_location_uuid: summary}
 
     with (
         patch(
             "forecast_inference.data.pv_data_sources.get_dataplatform_client",
-            return_value=_mock_dp_context(mock_client),
+            return_value=mock_dp_context(mock_client),
         ),
         patch(
-            "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
-            new=AsyncMock(return_value=loc_map),
+            "forecast_inference.data.pv_data_sources.fetch_dp_location_map_by_uuid",
+            new=AsyncMock(return_value=loc_map_by_uuid),
         ),
         patch(
             "forecast_inference.data_platform.load.get_dataplatform_client",
-            return_value=_mock_dp_context(mock_client),
+            return_value=mock_dp_context(mock_client),
         ),
         patch(
-            "forecast_inference.data_platform.load.fetch_dp_location_map",
-            new=AsyncMock(return_value=loc_map),
+            "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
+            new=AsyncMock(return_value=loc_map_by_uuid),
         ),
     ):
         yield dp_location_uuid

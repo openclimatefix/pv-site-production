@@ -6,12 +6,7 @@ from psp.typings import X
 
 from forecast_inference.data.pv_data_sources import DataPlatformPvDataSource
 from forecast_inference.models.psp import get_model
-
-
-def _mock_dp_context(client):
-    ctx = AsyncMock()
-    ctx.__aenter__.return_value = client
-    return ctx
+from tests.dp_test_helpers import mock_dp_context, tilt_orientation_metadata_fields
 
 
 def test_get_model(now):
@@ -21,18 +16,13 @@ def test_get_model(now):
     dp_location_uuid = "dp-uuid-123"
     dp_location_name = "test_site"
 
-    tilt_value = MagicMock()
-    tilt_value.number_value = 30.0
-    orientation_value = MagicMock()
-    orientation_value.number_value = 180.0
-
     summary = MagicMock()
     summary.location_uuid = dp_location_uuid
     summary.location_name = dp_location_name
     summary.latlng.latitude = 51.0
     summary.latlng.longitude = 3.0
     summary.effective_capacity_watts = 4000
-    summary.metadata.fields = {"tilt": tilt_value, "orientation": orientation_value}
+    summary.metadata.fields = tilt_orientation_metadata_fields()
 
     n_generations = 100
     obs_values = []
@@ -52,11 +42,11 @@ def test_get_model(now):
     with (
         patch(
             "forecast_inference.data_platform.load.get_dataplatform_client",
-            return_value=_mock_dp_context(mock_client),
+            return_value=mock_dp_context(mock_client),
         ),
         patch(
-            "forecast_inference.data_platform.load.fetch_dp_location_map",
-            new=AsyncMock(return_value={dp_location_name: summary}),
+            "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
+            new=AsyncMock(return_value={dp_location_uuid: summary}),
         ),
     ):
         pv_data_source = DataPlatformPvDataSource()

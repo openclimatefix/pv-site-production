@@ -1,2 +1,1 @@
 run_model_func: forecast_inference.models.cos.cos_model.get_model
-pv_db_url: ${OCF_PV_DB_URL}
