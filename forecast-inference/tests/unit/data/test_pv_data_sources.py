@@ -11,24 +11,10 @@ from forecast_inference.data_platform.load import (
     build_location_metadata,
     get_client_location_name,
 )
+from tests.dp_test_helpers import mock_dp_context, tilt_orientation_metadata_fields
 
 dp_location_uuid = "dp-uuid-123"
 dp_location_name = "test_dp_site"
-
-
-def _mock_dp_context(client):
-    ctx = AsyncMock()
-    ctx.__aenter__.return_value = client
-    return ctx
-
-
-def _tilt_orientation_metadata_fields(tilt=30.0, orientation=180.0):
-    """Metadata fields dict with tilt/orientation set, as required by `.get()`."""
-    tilt_value = MagicMock()
-    tilt_value.number_value = tilt
-    orientation_value = MagicMock()
-    orientation_value.number_value = orientation
-    return {"tilt": tilt_value, "orientation": orientation_value}
 
 
 def _mock_summary(
@@ -51,7 +37,7 @@ def _mock_summary(
     mock_summary.latlng.longitude = longitude
     mock_summary.effective_capacity_watts = capacity_watts
     mock_summary.metadata.fields = (
-        metadata_fields if metadata_fields is not None else _tilt_orientation_metadata_fields()
+        metadata_fields if metadata_fields is not None else tilt_orientation_metadata_fields()
     )
     return mock_summary
 
@@ -131,11 +117,11 @@ class TestDataPlatformPvDataSource:
         with (
             patch(
                 "forecast_inference.data_platform.load.get_dataplatform_client",
-                return_value=_mock_dp_context(mock_client),
+                return_value=mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={dp_location_name: summary}),
+                "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
+                new=AsyncMock(return_value={dp_location_uuid: summary}),
             ),
         ):
             pv_data_source = DataPlatformPvDataSource()
@@ -170,11 +156,11 @@ class TestDataPlatformPvDataSource:
         with (
             patch(
                 "forecast_inference.data_platform.load.get_dataplatform_client",
-                return_value=_mock_dp_context(mock_client),
+                return_value=mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={dp_location_name: summary}),
+                "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
+                new=AsyncMock(return_value={dp_location_uuid: summary}),
             ),
         ):
             pv_data_source = DataPlatformPvDataSource()
@@ -196,10 +182,10 @@ class TestDataPlatformPvDataSource:
         with (
             patch(
                 "forecast_inference.data_platform.load.get_dataplatform_client",
-                return_value=_mock_dp_context(mock_client),
+                return_value=mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data_platform.load.fetch_dp_location_map",
+                "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
                 new=AsyncMock(return_value={}),
             ),
             pytest.raises(RuntimeError, match=dp_location_uuid),
@@ -223,11 +209,11 @@ class TestDataPlatformPvDataSource:
         with (
             patch(
                 "forecast_inference.data_platform.load.get_dataplatform_client",
-                return_value=_mock_dp_context(mock_client),
+                return_value=mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={dp_location_name: summary}),
+                "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
+                new=AsyncMock(return_value={dp_location_uuid: summary}),
             ),
             pytest.raises(RuntimeError, match="tilt"),
         ):
@@ -261,11 +247,11 @@ class TestDataPlatformPvDataSource:
         with (
             patch(
                 "forecast_inference.data_platform.load.get_dataplatform_client",
-                return_value=_mock_dp_context(mock_client),
+                return_value=mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={dp_location_name: summary}),
+                "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
+                new=AsyncMock(return_value={dp_location_uuid: summary}),
             ),
         ):
             # asyncio.run() here mirrors app.py's `asyncio.run(_run_app())`, under which
@@ -285,15 +271,15 @@ class TestDataPlatformPvDataSource:
         mock_client.get_observations_as_timeseries.return_value = mock_obs_resp
 
         summary = _mock_summary()
-        mock_fetch_loc_map = AsyncMock(return_value={dp_location_name: summary})
+        mock_fetch_loc_map = AsyncMock(return_value={dp_location_uuid: summary})
 
         with (
             patch(
                 "forecast_inference.data_platform.load.get_dataplatform_client",
-                return_value=_mock_dp_context(mock_client),
+                return_value=mock_dp_context(mock_client),
             ),
             patch(
-                "forecast_inference.data_platform.load.fetch_dp_location_map",
+                "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
                 new=mock_fetch_loc_map,
             ),
         ):
@@ -317,15 +303,15 @@ class TestDataPlatformPvDataSource:
             capacity_watts=4000,
             metadata_fields={"client_location_name": name_value},
         )
-        mock_fetch_loc_map = AsyncMock(return_value={dp_location_name: summary})
+        mock_fetch_loc_map = AsyncMock(return_value={dp_location_uuid: summary})
 
         with (
             patch(
                 "forecast_inference.data.pv_data_sources.get_dataplatform_client",
-                return_value=_mock_dp_context(AsyncMock()),
+                return_value=mock_dp_context(AsyncMock()),
             ),
             patch(
-                "forecast_inference.data.pv_data_sources.fetch_dp_location_map",
+                "forecast_inference.data.pv_data_sources.fetch_dp_location_map_by_uuid",
                 new=mock_fetch_loc_map,
             ),
         ):

@@ -13,7 +13,7 @@ from psp.typings import PvId, Timestamp
 
 from forecast_inference.data_platform.client import (
     LocationSummary,
-    fetch_dp_location_map,
+    fetch_dp_location_map_by_uuid,
     get_dataplatform_client,
 )
 from forecast_inference.data_platform.load import (
@@ -69,12 +69,9 @@ class DataPlatformPvDataSource(PvDataSource):
 
             async def _fetch():
                 async with get_dataplatform_client() as client:
-                    return await fetch_dp_location_map(client)
+                    return await fetch_dp_location_map_by_uuid(client)
 
-            name_map = _run_async(_fetch())
-            self._dp_location_map = {
-                summary.location_uuid: summary for summary in name_map.values()
-            }
+            self._dp_location_map = _run_async(_fetch())
 
         return self._dp_location_map
 

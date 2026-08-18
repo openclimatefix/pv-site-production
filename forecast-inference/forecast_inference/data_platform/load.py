@@ -18,7 +18,7 @@ from psp.typings import Timestamp
 from forecast_inference.data_platform.client import (
     DataPlatformClient,
     LocationSummary,
-    fetch_dp_location_map,
+    fetch_dp_location_map_by_uuid,
     get_dataplatform_client,
 )
 
@@ -180,8 +180,7 @@ async def fetch_generation_and_locations_from_dp(
 
     async with get_dataplatform_client() as client:
         if loc_map_cache is None:
-            name_map = await fetch_dp_location_map(client)
-            loc_map_cache = {summary.location_uuid: summary for summary in name_map.values()}
+            loc_map_cache = await fetch_dp_location_map_by_uuid(client)
 
         summaries = [loc_map_cache[uuid] for uuid in location_uuids if uuid in loc_map_cache]
 
