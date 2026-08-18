@@ -33,8 +33,12 @@ Optional:
 This service reads sites, generation, and location metadata (latitude, longitude, capacity)
 exclusively from the Data Platform — there is no database dependency for the live run. `tilt`
 and `orientation` have no native Data Platform field; they're read from each location's
-`metadata` when present (see `pv-site-api`'s `create_location`/`update_location`), and default
-to unset for sites not yet backfilled with that metadata.
+`metadata` (see `pv-site-api`'s `create_location`/`update_location`, which write them there —
+specifically into `sources_history`, since they're a property of the energy source, not the
+underlying geometry). A site missing `tilt`/`orientation`/`latitude`/`longitude`/`capacity_kw`
+in its Data Platform metadata fails hard for that site rather than silently forecasting on
+incomplete data — see `scripts/backfill_dp_tilt_orientation.py` in `pv-site-api` for backfilling
+existing sites.
 
 
 ## Development
