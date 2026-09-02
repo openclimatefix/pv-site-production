@@ -1,52 +1,84 @@
+import datetime as dt
 import logging
 import pathlib
+from contextlib import contextmanager
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from freezegun import freeze_time
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
 from forecast_inference.app import main
 from forecast_inference.utils.testing import run_click_script
+from tests.dp_test_helpers import mock_dp_context, tilt_orientation_metadata_fields
 
 CONFIG_FIXTURES = [
     x for x in pathlib.Path("tests/fixtures/model_configs").iterdir() if x.suffix == ".yaml"
 ]
 
 
+@contextmanager
+def _mock_dp_environment(now, n_generations=100):
+    """Patch every Data Platform touchpoint app.py's full run goes through, with one mock site.
+
+    Covers site listing/metadata (`pv_data_sources.py`) and generation reads (`load.py`).
+    `SAVE_TO_DATA_PLATFORM` isn't set by these tests, so the save-side plumbing isn't exercised.
+    """
+    dp_location_uuid = "dp-uuid-app-test"
+    dp_location_name = "test_site"
+
+    summary = MagicMock()
+    summary.location_uuid = dp_location_uuid
+    summary.location_name = dp_location_name
+    summary.latlng.latitude = 51.0
+    summary.latlng.longitude = 3.0
+    summary.effective_capacity_watts = 4000
+    summary.metadata.fields = tilt_orientation_metadata_fields()
+
+    obs_values = []
+    for i in range(n_generations):
+        val = MagicMock()
+        val.timestamp_utc = now - dt.timedelta(minutes=i + 1)
+        val.value_fraction = i / n_generations
+        val.effective_capacity_watts = 4000
+        obs_values.append(val)
+    mock_obs_resp = MagicMock()
+    mock_obs_resp.values = obs_values
+
+    mock_client = AsyncMock()
+    mock_client.get_observations_as_timeseries.return_value = mock_obs_resp
+
+    loc_map_by_uuid = {dp_location_uuid: summary}
+
+    with (
+        patch(
+            "forecast_inference.data.pv_data_sources.get_dataplatform_client",
+            return_value=mock_dp_context(mock_client),
+        ),
+        patch(
+            "forecast_inference.data.pv_data_sources.fetch_dp_location_map_by_uuid",
+            new=AsyncMock(return_value=loc_map_by_uuid),
+        ),
+        patch(
+            "forecast_inference.data_platform.load.get_dataplatform_client",
+            return_value=mock_dp_context(mock_client),
+        ),
+        patch(
+            "forecast_inference.data_platform.load.fetch_dp_location_map_by_uuid",
+            new=AsyncMock(return_value=loc_map_by_uuid),
+        ),
+    ):
+        yield dp_location_uuid
+
+
 @pytest.mark.parametrize("config_file", CONFIG_FIXTURES)
-@pytest.mark.parametrize("write_to_db", [True, False])
-def test_app(config_file: pathlib.Path, write_to_db: bool, db_session, now):
+def test_app(config_file: pathlib.Path, now):
+    with _mock_dp_environment(now):
+        cmd_args = ["--config", str(config_file), "--date", now.strftime("%Y-%m-%d-%H-%M")]
+        result = run_click_script(main, cmd_args)
 
-    # The script creates its own Database Connection object so it's not possible to use the
-    # `db_session` defined in `conftest.py` that automatically removes the rows.
-    # Because of this we compare rows before and rows after.
-    def get_num_rows() -> dict[str, int]:
-        return {
-            table.__table__.name: db_session.query(table).count()  # type: ignore
-            for table in [ForecastSQL, ForecastValueSQL]
-            # TODO Currently nothing is written in LatestForecastValueSQL
-            # , LatestForecastValueSQL]
-        }
-
-    num_rows_before = get_num_rows()
-
-    cmd_args = ["--config", str(config_file), "--date", now.strftime("%Y-%m-%d-%H-%M")]
-    if write_to_db:
-        cmd_args.append("--write-to-db")
-
-    result = run_click_script(main, cmd_args)
     assert result.exit_code == 0
-
-    num_rows_after = get_num_rows()
-
-    # Make sure forecast are written in the DB when we passe the --write-to-db option, and that
-    # none are written otherwise.
-    for table_name, num_rows in num_rows_after.items():
-        if write_to_db:
-            assert num_rows > num_rows_before[table_name]
-        else:
-            assert num_rows == num_rows_before[table_name]
+    assert "PV Site" in result.output
 
 
 def test_app_can_not_use_both_date_and_round_to_minutes(now):
@@ -99,7 +131,7 @@ def test_app_no_round_date(round_to, timestamp, expected_timestamp, caplog):
     caplog.set_level(logging.INFO)
 
     # Here we make sure that datetime.datetime.utcnow() == `timestamp`.
-    with freeze_time(timestamp):
+    with freeze_time(timestamp), _mock_dp_environment(timestamp):
         cmd_args = [
             "--config",
             "tests/fixtures/model_configs/cos.yaml",
