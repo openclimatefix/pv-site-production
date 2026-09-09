@@ -103,15 +103,21 @@ class TestFetchGenerationFromDp:
         mock_client.get_observations_as_timeseries.assert_not_called()
 
 
+def _mock_summary(latitude=52.5, longitude=-2.5, capacity_watts=5000, metadata_fields=None):
+    """Build a MagicMock DP `LocationSummary`, with a real (non-auto-mocking) metadata dict."""
+    mock_summary = MagicMock()
+    mock_summary.latlng.latitude = latitude
+    mock_summary.latlng.longitude = longitude
+    mock_summary.effective_capacity_watts = capacity_watts
+    mock_summary.metadata.fields = metadata_fields or {}
+    return mock_summary
+
+
 class TestFetchLocationFromDp:
     """Test the module-level `fetch_location_for_one_site_from_dp` helper."""
 
     def test_returns_latitude_longitude_and_capacity(self, dp_site):
-        mock_summary = MagicMock()
-        mock_summary.latlng.latitude = 52.5
-        mock_summary.latlng.longitude = -2.5
-        mock_summary.effective_capacity_watts = 5000
-        loc_map = {_sanitize(dp_site_name): mock_summary}
+        loc_map = {_sanitize(dp_site_name): _mock_summary()}
 
         location = fetch_location_for_one_site_from_dp(loc_map, dp_site)
 
@@ -122,13 +128,47 @@ class TestFetchLocationFromDp:
         }
 
     def test_site_not_in_dp_returns_none(self, dp_site):
-        location = fetch_location_for_one_site_from_dp({"some-other-site": MagicMock()}, dp_site)
+        location = fetch_location_for_one_site_from_dp(
+            {"some-other-site": _mock_summary()}, dp_site
+        )
         assert location is None
 
     def test_site_without_client_location_name_returns_none(self, dp_site):
         dp_site.client_location_name = None
-        location = fetch_location_for_one_site_from_dp({_sanitize(dp_site_name): MagicMock()}, dp_site)
+        location = fetch_location_for_one_site_from_dp(
+            {_sanitize(dp_site_name): _mock_summary()}, dp_site
+        )
         assert location is None
+
+    def test_includes_tilt_and_orientation_when_present_in_metadata(self, dp_site):
+        tilt_value = MagicMock()
+        tilt_value.number_value = 35.0
+        orientation_value = MagicMock()
+        orientation_value.number_value = 170.0
+        loc_map = {
+            _sanitize(dp_site_name): _mock_summary(
+                metadata_fields={"tilt": tilt_value, "orientation": orientation_value}
+            )
+        }
+
+        location = fetch_location_for_one_site_from_dp(loc_map, dp_site)
+
+        assert location == {
+            "latitude": 52.5,
+            "longitude": -2.5,
+            "capacity_kw": 5.0,
+            "tilt": 35.0,
+            "orientation": 170.0,
+        }
+
+    def test_omits_tilt_and_orientation_when_absent_from_metadata(self, dp_site):
+        """No `tilt`/`orientation` keys in DP metadata → caller falls back to the database."""
+        loc_map = {_sanitize(dp_site_name): _mock_summary(metadata_fields={})}
+
+        location = fetch_location_for_one_site_from_dp(loc_map, dp_site)
+
+        assert "tilt" not in location
+        assert "orientation" not in location
 
 
 class TestDbPvDataSourceReadsFromDataPlatform:
@@ -147,6 +187,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
         mock_summary.effective_capacity_watts = 5000  # 5 kW, different from DB's 4 kW
         mock_summary.latlng.latitude = 52.5  # different from DB's 51.0
         mock_summary.latlng.longitude = -2.5  # different from DB's -1.0
+        mock_summary.metadata.fields = {}  # no tilt/orientation in DP metadata for this site
 
         mock_val = MagicMock()
         mock_val.timestamp_utc = dt.datetime(2024, 6, 1, 10, 0, tzinfo=dt.UTC)
@@ -182,9 +223,55 @@ class TestDbPvDataSourceReadsFromDataPlatform:
         assert result["longitude"].sel(id=site_uuid).item() == pytest.approx(-2.5)
         assert result["capacity"].sel(id=site_uuid).item() == pytest.approx(5.0)
 
-        # tilt/orientation have no DP equivalent, so they still come from the DB.
+        # tilt/orientation have no DP equivalent and weren't present in metadata here,
+        # so they still come from the DB.
         assert result["tilt"].sel(id=site_uuid).item() == pytest.approx(30.0)
         assert result["orientation"].sel(id=site_uuid).item() == pytest.approx(180.0)
+
+    def test_reads_tilt_and_orientation_from_dp_metadata_when_present(
+        self, monkeypatch, database_connection, dp_site
+    ):
+        """When DP location metadata carries tilt/orientation, prefer those over the DB."""
+        monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "true")
+        site_uuid = str(dp_site.location_uuid)
+
+        mock_client = AsyncMock()
+
+        tilt_value = MagicMock()
+        tilt_value.number_value = 35.0  # different from DB's 30.0
+        orientation_value = MagicMock()
+        orientation_value.number_value = 170.0  # different from DB's 180.0
+
+        mock_summary = MagicMock()
+        mock_summary.location_uuid = "dp-uuid-123"
+        mock_summary.effective_capacity_watts = 4000
+        mock_summary.latlng.latitude = 51.0
+        mock_summary.latlng.longitude = -1.0
+        mock_summary.metadata.fields = {"tilt": tilt_value, "orientation": orientation_value}
+
+        mock_obs_resp = MagicMock()
+        mock_obs_resp.values = []
+        mock_client.get_observations_as_timeseries.return_value = mock_obs_resp
+
+        with (
+            patch(
+                "forecast_inference.data_platform.load.get_dataplatform_client",
+                return_value=_mock_dp_context(mock_client),
+            ),
+            patch(
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
+                new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
+            ),
+        ):
+            pv_data_source = DbPvDataSource(database_connection)
+            result = pv_data_source.get(
+                [site_uuid],
+                start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
+                end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
+            )
+
+        assert result["tilt"].sel(id=site_uuid).item() == pytest.approx(35.0)
+        assert result["orientation"].sel(id=site_uuid).item() == pytest.approx(170.0)
 
     def test_site_not_found_in_dp_falls_back_to_db_metadata(
         self, monkeypatch, database_connection, dp_site
@@ -254,6 +341,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
         mock_summary.effective_capacity_watts = 4000
         mock_summary.latlng.latitude = 51.0
         mock_summary.latlng.longitude = -1.0
+        mock_summary.metadata.fields = {}
 
         async def _call_get_from_within_a_running_loop():
             pv_data_source = DbPvDataSource(database_connection)
@@ -297,6 +385,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
         mock_summary.effective_capacity_watts = 4000
         mock_summary.latlng.latitude = 51.0
         mock_summary.latlng.longitude = -1.0
+        mock_summary.metadata.fields = {}
         mock_fetch_loc_map = AsyncMock(return_value={_sanitize(dp_site_name): mock_summary})
 
         with (

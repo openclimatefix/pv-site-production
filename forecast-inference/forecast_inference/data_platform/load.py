@@ -87,11 +87,25 @@ async def fetch_generation_for_one_site_from_dp(
     return data
 
 
+def _get_metadata_float(summary: LocationSummary, key: str) -> float | None:
+    """Read a numeric value out of a DP location's generic `metadata` Struct, if present."""
+    value = summary.metadata.fields.get(key)
+    if value is None:
+        return None
+    return value.number_value
+
+
 def fetch_location_for_one_site_from_dp(
     loc_map: dict[str, LocationSummary],
     site: LocationSQL,
 ) -> dict | None:
-    """Look up a site's location metadata (latitude, longitude, capacity_kw) in the DP."""
+    """Look up a site's location metadata (latitude, longitude, capacity_kw) in the DP.
+
+    `tilt`/`orientation` have no native DP field, so they're read from the location's
+    `metadata` Struct when present (see `pv-site-api`'s `create_location`/`update_location`,
+    which write them there). When absent from `metadata` (e.g. not yet backfilled), the key
+    is omitted here so the caller falls back to the database value instead of a bare `None`.
+    """
     if not site.client_location_name:
         return None
 
@@ -100,11 +114,21 @@ def fetch_location_for_one_site_from_dp(
     if not summary:
         return None
 
-    return {
+    location = {
         "latitude": summary.latlng.latitude,
         "longitude": summary.latlng.longitude,
         "capacity_kw": summary.effective_capacity_watts / 1000.0,
     }
+
+    tilt = _get_metadata_float(summary, "tilt")
+    if tilt is not None:
+        location["tilt"] = tilt
+
+    orientation = _get_metadata_float(summary, "orientation")
+    if orientation is not None:
+        location["orientation"] = orientation
+
+    return location
 
 
 async def get_generation_from_dp(
