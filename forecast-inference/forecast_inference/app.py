@@ -1,5 +1,5 @@
 """
-Apply the model to the PVs in the database and note the results.
+Apply the model to the PVs in the Data Platform and note the results.
 """
 
 import asyncio
@@ -8,7 +8,6 @@ import importlib.metadata
 import logging
 import os
 import pathlib
-from uuid import UUID
 
 import click
 import dotenv
@@ -16,13 +15,11 @@ import numpy as np
 import sentry_sdk
 from psp.models.base import PvSiteModel
 from psp.typings import PvId, Timestamp, X
-from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 
 from forecast_inference.data.nwp_data_sources import (
     download_and_add_osgb_to_nwp_data_source,
 )
-from forecast_inference.data.pv_data_sources import DbPvDataSource
+from forecast_inference.data.pv_data_sources import DataPlatformPvDataSource
 from forecast_inference.data_platform import (
     DataPlatformClient,
     LocationSummary,
@@ -59,11 +56,9 @@ sentry_sdk.set_tag("version", version)
 
 
 async def _run_model_and_save_for_one_pv(
-    database_connection: DatabaseConnection,
     model: PvSiteModel,
     pv_id: PvId,
     timestamp: Timestamp,
-    write_to_db: bool,
     print_to_stdout: bool,
     save_to_data_platform: bool = False,
     site_meta: dict | None = None,
@@ -71,11 +66,11 @@ async def _run_model_and_save_for_one_pv(
     dp_location_map: dict[str, LocationSummary] | None = None,
 ) -> bool:
     """
-    Run model and save to database for one PV.
+    Run model and save the forecast for one PV.
 
-    When save_to_data_platform is True, also pushes the forecast to the Data Platform
-    after a successful DB write. site_meta must contain client_location_name, capacity_kw,
-    latitude, and longitude for the given pv_id.
+    When save_to_data_platform is True, pushes the forecast to the Data Platform. site_meta
+    must contain client_location_name, capacity_kw, latitude, and longitude for the given
+    pv_id.
 
     Return:
     ------
@@ -90,9 +85,7 @@ async def _run_model_and_save_for_one_pv(
             )
             return False
 
-    site_uuid = UUID(pv_id)
-
-    # Assemble the data in ForecastValuesSQL rows for the database.
+    # Assemble the forecast rows.
     rows = [
         {
             "start_utc": timestamp + dt.timedelta(minutes=start),
@@ -103,33 +96,7 @@ async def _run_model_and_save_for_one_pv(
         for (start, end), value in zip(model.config.horizons, pred.powers)
     ]
 
-    if write_to_db:
-        with (
-            profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'),
-            database_connection.get_session() as session,
-        ):
-            forecast = ForecastSQL(
-                location_uuid=site_uuid,  # type: ignore
-                forecast_version="0.0.0",  # TODO get version
-                timestamp_utc=timestamp,
-            )
-            session.add(forecast)
-            # Flush to get the Forecast's primary key.
-            session.flush()
-
-            # Insert all the forecast value objects in one efficient call.
-            session.bulk_save_objects(
-                [
-                    ForecastValueSQL(
-                        **row,
-                        forecast_uuid=forecast.forecast_uuid,
-                    )
-                    for row in rows
-                ]
-            )
-            session.commit()
-    elif print_to_stdout:
-        # Write to stdout when we don't want to write in the database.
+    if print_to_stdout:
         print(f'PV Site = "{pv_id}"')
         for row in rows:
             print(f" | {row['start_utc']}" f" | {row['end_utc']}" f" | {row['forecast_power_kw']}")
@@ -186,18 +153,10 @@ async def _run_model_and_save_for_one_pv(
     help="Maximum number of PVs to treat. This is useful for testing.",
 )
 @click.option(
-    "--write-to-db",
-    is_flag=True,
-    default=False,
-    help="Set this flag to actually write the results to the database."
-    "By default we only print to stdout",
-)
-@click.option(
     "--no-print-to-stdout",
     is_flag=True,
     default=False,
-    help="Do not print the forecasts to stdout, even if --write-to-db is not set."
-    " This is useful when debugging",
+    help="Do not print the forecasts to stdout. This is useful when debugging",
 )
 @click.option(
     "--log-level",
@@ -215,7 +174,6 @@ def main(
     config_path: pathlib.Path,
     timestamp: dt.datetime | None,
     max_pvs: int | None,
-    write_to_db: bool,
     round_date_to_minutes: int | None,
     no_print_to_stdout: bool,
     raise_on_failure: bool,
@@ -240,7 +198,7 @@ def main(
     config = load_config(config_path, dotenv_variables | os.environ)
 
     if timestamp is None:
-        # Naive UTC by convention, to match GenerationSQL/ForecastSQL's naive DateTime columns.
+        # Naive UTC by convention.
         timestamp = dt.datetime.utcnow()  # noqa: DTZ003
         if round_date_to_minutes:
             timestamp = timestamp.replace(
@@ -253,11 +211,6 @@ def main(
 
     get_model = import_from_module(config["run_model_func"])
 
-    log.debug("Connecting to pv database")
-    url = config["pv_db_url"]
-
-    database_connection = DatabaseConnection(url, echo=False)
-
     # download and add osbg to nwp datasource
     nwp_zarr_path = os.getenv("NWP_ZARR_PATH")
     if nwp_zarr_path is not None:
@@ -267,7 +220,7 @@ def main(
 
     # Wrap into a PV data source for the models.
     log.info("Creating PV data source")
-    pv_data_source = DbPvDataSource(database_connection)
+    pv_data_source = DataPlatformPvDataSource()
 
     with profile("Loading model"):
         model: PvSiteModel = get_model(config, pv_data_source)
@@ -282,7 +235,7 @@ def main(
     # Read Data Platform flag
     save_to_dp = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
-    # Pre-fetch site metadata (single DB query via pv_data_source — avoids per-PV round-trips)
+    # Pre-fetch site metadata (single DP query via pv_data_source — avoids per-PV round-trips)
     site_metadata = pv_data_source.get_site_metadata()
     log.info(f"Pre-fetched metadata for {len(site_metadata)} sites")
 
@@ -294,12 +247,10 @@ def main(
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
                 for pv_id in pv_ids:
                     success = await _run_model_and_save_for_one_pv(
-                        database_connection=database_connection,
                         model=model,
                         pv_id=pv_id,
                         timestamp=timestamp,
-                        write_to_db=write_to_db,
-                        print_to_stdout=not write_to_db and not no_print_to_stdout,
+                        print_to_stdout=not no_print_to_stdout,
                         save_to_data_platform=True,
                         site_meta=site_metadata.get(pv_id),
                         client=client,
@@ -310,12 +261,10 @@ def main(
         else:
             for pv_id in pv_ids:
                 success = await _run_model_and_save_for_one_pv(
-                    database_connection=database_connection,
                     model=model,
                     pv_id=pv_id,
                     timestamp=timestamp,
-                    write_to_db=write_to_db,
-                    print_to_stdout=not write_to_db and not no_print_to_stdout,
+                    print_to_stdout=not no_print_to_stdout,
                     save_to_data_platform=False,
                     site_meta=site_metadata.get(pv_id),
                 )

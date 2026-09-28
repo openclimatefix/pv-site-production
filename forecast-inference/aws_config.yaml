@@ -22,5 +22,3 @@ nwp:
       - si10
 
 pv_metadata_path: s3://pvsite-ml-models-${OCF_ENVIRONMENT}/meta_inferred.csv
-
-pv_db_url: ${OCF_PV_DB_URL}
