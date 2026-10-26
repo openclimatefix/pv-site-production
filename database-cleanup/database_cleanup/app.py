@@ -230,9 +230,9 @@ def format_date(date) -> dt.datetime:
     """
     if date is None:
         # Naive UTC by convention, to match ForecastSQL.timestamp_utc (a naive DateTime column).
-        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")  # noqa: DTZ011
+        date = (dt.date.today() - dt.timedelta(days=3)).strftime("%Y-%m-%d 00:00")
 
-    date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")  # noqa: DTZ007
+    date = dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
 
     return date
 

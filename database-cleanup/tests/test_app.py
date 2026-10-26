@@ -109,7 +109,7 @@ def test_app(session: Session, site, batch_size: int, date_str: str | None, expe
         save_dir = tmpdirname
 
         # Naive UTC by convention, to match ForecastSQL.timestamp_utc (a naive DateTime column).
-        timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]  # noqa: DTZ001
+        timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]
 
         # Add forecasts for those.
         _add_foreasts(
@@ -175,7 +175,7 @@ def test_app_dry_run(session: Session, site, do_delete: bool):
     num_values = 9
 
     # Naive UTC by convention, to match ForecastSQL.timestamp_utc (a naive DateTime column).
-    timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]  # noqa: DTZ001
+    timestamps = [dt.datetime(2020, 1, d + 1) for d in range(num_forecasts)]
 
     _add_foreasts(
         session,

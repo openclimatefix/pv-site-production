@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 from datetime import UTC, timedelta
+from uuid import UUID
 
 import pandas as pd
 from ocf import dp
@@ -129,6 +130,25 @@ def fetch_location_for_one_site_from_dp(
         location["orientation"] = orientation
 
     return location
+
+
+async def fetch_dp_sites_location_map() -> dict[str, LocationSummary]:
+    """Fetch all site locations from the Data Platform, keyed by name."""
+    async with get_dataplatform_client() as client:
+        return await fetch_dp_location_map(client)
+
+
+def dp_location_to_site(summary: LocationSummary) -> LocationSQL:
+    """Make a site from a Data Platform location, so it can be used like a database site."""
+    return LocationSQL(
+        location_uuid=UUID(summary.location_uuid),
+        client_location_name=summary.location_name,
+        latitude=summary.latlng.latitude,
+        longitude=summary.latlng.longitude,
+        capacity_kw=summary.effective_capacity_watts / 1000.0,
+        tilt=_get_metadata_float(summary, "tilt"),
+        orientation=_get_metadata_float(summary, "orientation"),
+    )
 
 
 async def get_generation_from_dp(
