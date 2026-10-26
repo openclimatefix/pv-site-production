@@ -42,4 +42,4 @@ COPY --from=build-app /app /app
 # Note that we round down the time at which we make the prediction to 15 minutes.
 # This means that if we don't want predictions to be (up-to) 15 minute late,
 # we need to make sure this runs *right after* these "round" times.
-ENTRYPOINT ["/app/.venv/bin/python", "-m", "forecast_inference.app", "-c", "configuration.yaml", "--write-to-db", "--round-date-to-minutes", "15", "--log-level", "info"]
+ENTRYPOINT ["/app/.venv/bin/python", "-m", "forecast_inference.app", "-c", "configuration.yaml", "--round-date-to-minutes", "15", "--log-level", "info"]

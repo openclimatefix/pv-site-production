@@ -27,6 +27,9 @@ Need to set
 - SAVE_TO_DATA_PLATFORM
 
 Optional:
+- `WRITE_TO_DB` (default `true`): save forecasts to the site database.
+- `LOAD_SITES_FROM_DATA_PLATFORM` (default `false`): load sites and their generation
+  from the Data Platform instead of the database. Needs `WRITE_TO_DB=false`.
 - `READ_FROM_DATA_PLATFORM`
 - `OBSERVER_NAME` (default `pv_site_api`)
   observations from. Only used when `READ_FROM_DATA_PLATFORM=true` — has no effect

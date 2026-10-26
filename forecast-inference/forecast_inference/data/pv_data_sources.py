@@ -12,6 +12,7 @@ from uuid import UUID
 import numpy as np
 import pandas as pd
 import xarray as xr
+from ocf import dp
 from psp.data_sources.pv import PvDataSource, min_timestamp
 from psp.typings import PvId, Timestamp
 from pvsite_datamodel.connection import DatabaseConnection
@@ -19,7 +20,11 @@ from pvsite_datamodel.sqlmodels import GenerationSQL, LocationSQL
 from sqlalchemy.orm import Session
 
 from forecast_inference.data_platform.client import LocationSummary
-from forecast_inference.data_platform.load import fetch_generation_and_locations_from_dp
+from forecast_inference.data_platform.load import (
+    dp_location_to_site,
+    fetch_dp_sites_location_map,
+    fetch_generation_and_locations_from_dp,
+)
 
 META_KEYS = [
     "longitude",
@@ -44,6 +49,11 @@ def _run_async(coro):
             return executor.submit(asyncio.run, coro).result()
     else:
         return asyncio.run(coro)
+
+
+def load_sites_from_data_platform() -> bool:
+    """Whether the sites to forecast are loaded from the Data Platform."""
+    return os.getenv("LOAD_SITES_FROM_DATA_PLATFORM", "false").lower() == "true"
 
 
 def _to_float(x: float | None) -> float:
@@ -87,6 +97,18 @@ class DbPvDataSource(PvDataSource):
 
         return sites
 
+    def _get_dp_sites(self) -> dict[str, LocationSQL]:
+        """Solar sites from the Data Platform, keyed by location uuid."""
+        if self._dp_location_map is None:
+            self._dp_location_map = _run_async(fetch_dp_sites_location_map())
+
+        sites = [
+            dp_location_to_site(summary)
+            for summary in self._dp_location_map.values()
+            if summary.energy_source == dp.EnergySource.SOLAR
+        ]
+        return {str(site.location_uuid): site for site in sites}
+
     def get(
         self,
         pv_ids: list[PvId] | PvId,
@@ -107,7 +129,11 @@ class DbPvDataSource(PvDataSource):
 
         site_uuids = pv_ids
 
-        read_from_dp = os.getenv("READ_FROM_DATA_PLATFORM", "false").lower() == "true"
+        # Data Platform sites have no generation in the database
+        read_from_dp = (
+            os.getenv("READ_FROM_DATA_PLATFORM", "false").lower() == "true"
+            or load_sites_from_data_platform()
+        )
 
         _log.debug(f"Getting data from {start_ts} to {end_ts} for {len(site_uuids)} PVs")
 
@@ -115,8 +141,12 @@ class DbPvDataSource(PvDataSource):
         # DP branch, this also lets the DB session close before we make the (potentially
         # slow) Data Platform network calls, rather than holding a pooled DB connection
         # idle for the duration of the DP round-trip.
-        with self._database_connection.get_session() as session:
-            sites = self._load_sites(session, site_uuids)
+        if load_sites_from_data_platform():
+            dp_sites = self._get_dp_sites()
+            sites = [dp_sites[site_uuid] for site_uuid in site_uuids]
+        else:
+            with self._database_connection.get_session() as session:
+                sites = self._load_sites(session, site_uuids)
 
         if read_from_dp:
             df, dp_locations, self._dp_location_map = _run_async(
@@ -209,22 +239,26 @@ class DbPvDataSource(PvDataSource):
 
         Returns a mapping of pv_id (location_uuid str) to a metadata dict.
         """
-        with self._database_connection.get_session() as session:
-            query = (
-                session.query(LocationSQL)
-                .where(LocationSQL.country == "uk")
-                .where(LocationSQL.active)
-                .all()
-            )
-            return {
-                str(site.location_uuid): {
-                    "client_location_name": site.client_location_name,
-                    "capacity_kw": site.capacity_kw,
-                    "latitude": site.latitude,
-                    "longitude": site.longitude,
-                }
-                for site in query
+        if load_sites_from_data_platform():
+            query = list(self._get_dp_sites().values())
+        else:
+            with self._database_connection.get_session() as session:
+                query = (
+                    session.query(LocationSQL)
+                    .where(LocationSQL.country == "uk")
+                    .where(LocationSQL.active)
+                    .all()
+                )
+
+        return {
+            str(site.location_uuid): {
+                "client_location_name": site.client_location_name,
+                "capacity_kw": site.capacity_kw,
+                "latitude": site.latitude,
+                "longitude": site.longitude,
             }
+            for site in query
+        }
 
     def list_pv_ids(self) -> list[PvId]:
         """List all the PV ids"""

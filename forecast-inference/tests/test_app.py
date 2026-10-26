@@ -32,8 +32,7 @@ def test_app(config_file: pathlib.Path, write_to_db: bool, db_session, now):
     num_rows_before = get_num_rows()
 
     cmd_args = ["--config", str(config_file), "--date", now.strftime("%Y-%m-%d-%H-%M")]
-    if write_to_db:
-        cmd_args.append("--write-to-db")
+    cmd_args.append("--write-to-db" if write_to_db else "--no-write-to-db")
 
     result = run_click_script(main, cmd_args)
     assert result.exit_code == 0
@@ -62,6 +61,15 @@ def test_app_can_not_use_both_date_and_round_to_minutes(now):
     result = run_click_script(main, cmd_args, catch_exceptions=True)
     assert result.exit_code != 0
     assert "can not use both" in str(result.exception)
+
+
+def test_app_can_not_write_to_db_with_sites_from_data_platform(monkeypatch):
+    monkeypatch.setenv("LOAD_SITES_FROM_DATA_PLATFORM", "true")
+    cmd_args = ["--config", "tests/fixtures/model_configs/cos.yaml", "--write-to-db"]
+
+    result = run_click_script(main, cmd_args, catch_exceptions=True)
+    assert result.exit_code != 0
+    assert "LOAD_SITES_FROM_DATA_PLATFORM" in str(result.exception)
 
 
 @pytest.mark.parametrize(

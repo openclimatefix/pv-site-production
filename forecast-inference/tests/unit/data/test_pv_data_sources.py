@@ -5,9 +5,11 @@
 
 import asyncio
 import datetime as dt
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from ocf import dp
 from pvsite_datamodel.sqlmodels import LocationSQL
 
 from forecast_inference.data.pv_data_sources import DbPvDataSource
@@ -407,3 +409,54 @@ class TestDbPvDataSourceReadsFromDataPlatform:
                 )
 
         mock_fetch_loc_map.assert_called_once()
+
+
+class TestDbPvDataSourceLoadsSitesFromDataPlatform:
+    """Test `DbPvDataSource` with `LOAD_SITES_FROM_DATA_PLATFORM=true`."""
+
+    def test_lists_and_gets_solar_sites_from_dp(self, monkeypatch, database_connection):
+        monkeypatch.setenv("LOAD_SITES_FROM_DATA_PLATFORM", "true")
+        site_uuid = str(uuid.uuid4())
+
+        solar_summary = _mock_summary(capacity_watts=3000)
+        solar_summary.location_uuid = site_uuid
+        solar_summary.location_name = "dp_solar_site"
+        solar_summary.energy_source = dp.EnergySource.SOLAR
+
+        wind_summary = _mock_summary()
+        wind_summary.location_uuid = str(uuid.uuid4())
+        wind_summary.location_name = "dp_wind_site"
+        wind_summary.energy_source = dp.EnergySource.WIND
+
+        mock_val = MagicMock()
+        mock_val.timestamp_utc = dt.datetime(2024, 6, 1, 10, 0, tzinfo=dt.UTC)
+        mock_val.value_fraction = 0.5
+        mock_val.effective_capacity_watts = 3000
+
+        mock_client = AsyncMock()
+        mock_client.get_observations_as_timeseries.return_value = MagicMock(values=[mock_val])
+
+        with (
+            patch(
+                "forecast_inference.data_platform.load.get_dataplatform_client",
+                return_value=_mock_dp_context(mock_client),
+            ),
+            patch(
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
+                new=AsyncMock(
+                    return_value={"dp_solar_site": solar_summary, "dp_wind_site": wind_summary}
+                ),
+            ),
+        ):
+            pv_data_source = DbPvDataSource(database_connection)
+            pv_ids = pv_data_source.list_pv_ids()
+            result = pv_data_source.get(
+                pv_ids,
+                start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
+                end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
+            )
+
+        # Only the solar site is loaded, and its generation comes from the DP
+        assert pv_ids == [site_uuid]
+        assert result["capacity"].sel(id=site_uuid).item() == pytest.approx(3.0)
+        assert result["power"].sel(id=site_uuid).values[0] == pytest.approx(1.5)

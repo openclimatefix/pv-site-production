@@ -22,7 +22,7 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from forecast_inference.data.nwp_data_sources import (
     download_and_add_osgb_to_nwp_data_source,
 )
-from forecast_inference.data.pv_data_sources import DbPvDataSource
+from forecast_inference.data.pv_data_sources import DbPvDataSource, load_sites_from_data_platform
 from forecast_inference.data_platform import (
     DataPlatformClient,
     LocationSummary,
@@ -186,11 +186,11 @@ async def _run_model_and_save_for_one_pv(
     help="Maximum number of PVs to treat. This is useful for testing.",
 )
 @click.option(
-    "--write-to-db",
-    is_flag=True,
-    default=False,
-    help="Set this flag to actually write the results to the database."
-    "By default we only print to stdout",
+    "--write-to-db/--no-write-to-db",
+    default=True,
+    envvar="WRITE_TO_DB",
+    show_default=True,
+    help="Whether to write the results to the site database. Can also be set with WRITE_TO_DB.",
 )
 @click.option(
     "--no-print-to-stdout",
@@ -229,6 +229,10 @@ def main(
 
     if timestamp is not None and round_date_to_minutes is not None:
         raise RuntimeError("You can not use both --date and --round-date-to-minutes")
+
+    # Data Platform site uuids are not the same as in the site database, so forecasts can't be saved there
+    if write_to_db and load_sites_from_data_platform():
+        raise RuntimeError("WRITE_TO_DB can not be used with LOAD_SITES_FROM_DATA_PLATFORM")
 
     log.debug("Load the configuration file")
     # Typically the configuration will contain many placeholders pointing to environment variables.
