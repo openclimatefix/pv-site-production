@@ -80,20 +80,20 @@ def test_app_can_not_write_to_db_with_sites_from_data_platform(monkeypatch):
         # No rounding by default.
         [
             None,
-            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
-            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
+            datetime(2000, 12, 30, 23, 59, 59, 123456),
+            datetime(2000, 12, 30, 23, 59, 59, 123456),
         ],
-        [None, datetime(2000, 12, 30), datetime(2000, 12, 30)],  # noqa: DTZ001
+        [None, datetime(2000, 12, 30), datetime(2000, 12, 30)],
         # "Floor" the minutes when we want to round.
         [
             5,
-            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
-            datetime(2000, 12, 30, 23, 55),  # noqa: DTZ001
+            datetime(2000, 12, 30, 23, 59, 59, 123456),
+            datetime(2000, 12, 30, 23, 55),
         ],
         [
             10,
-            datetime(2000, 12, 30, 23, 59, 59, 123456),  # noqa: DTZ001
-            datetime(2000, 12, 30, 23, 50),  # noqa: DTZ001
+            datetime(2000, 12, 30, 23, 59, 59, 123456),
+            datetime(2000, 12, 30, 23, 50),
         ],
     ],
 )

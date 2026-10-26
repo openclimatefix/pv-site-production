@@ -22,7 +22,10 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from forecast_inference.data.nwp_data_sources import (
     download_and_add_osgb_to_nwp_data_source,
 )
-from forecast_inference.data.pv_data_sources import DbPvDataSource, load_sites_from_data_platform
+from forecast_inference.data.pv_data_sources import (
+    DbPvDataSource,
+    load_sites_from_data_platform,
+)
 from forecast_inference.data_platform import (
     DataPlatformClient,
     LocationSummary,
