@@ -292,6 +292,9 @@ def main(
     with profile("Loading model"):
         model: PvSiteModel = get_model(config, pv_data_source)
 
+    # Get the list of PV ids
+    # if we are reading from the database, this is a list of site_uuids, 
+    # if we are reading from the dataplatform, this is a list of location names
     pv_ids = pv_data_source.list_pv_ids()
     log.info(f"Found {len(pv_ids)} sites")
 

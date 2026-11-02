@@ -107,7 +107,7 @@ class DbPvDataSource(PvDataSource):
             for summary in self._dp_location_map.values()
             if summary.energy_source == dp.EnergySource.SOLAR
         ]
-        return {str(site.location_uuid): site for site in sites}
+        return {str(site.client_location_name): site for site in sites}
 
     def get(
         self,

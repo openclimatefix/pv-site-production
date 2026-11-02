@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 from datetime import UTC, timedelta
+from uuid import UUID
 
 import pandas as pd
 from ocf import dp
@@ -134,7 +135,7 @@ def dp_location_to_site(summary: LocationSummary) -> LocationSQL:
     The location name is used as the site's id.
     """
     return LocationSQL(
-        location_uuid=summary.location_name,
+        location_uuid=UUID(summary.location_uuid),
         client_location_name=summary.location_name,
         latitude=summary.latlng.latitude,
         longitude=summary.latlng.longitude,
