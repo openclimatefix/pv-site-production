@@ -9,6 +9,7 @@ from forecast_inference.data_platform.client import (
     DataPlatformClient,
     LocationSummary,
     fetch_dp_location_map,
+    find_dp_location,
     get_dataplatform_client,
 )
 from forecast_inference.data_platform.save import save_forecast_to_dataplatform
@@ -17,6 +18,7 @@ __all__ = [
     "DataPlatformClient",
     "LocationSummary",
     "fetch_dp_location_map",
+    "find_dp_location",
     "get_dataplatform_client",
     "save_forecast_to_dataplatform",
 ]

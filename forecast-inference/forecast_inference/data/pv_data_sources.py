@@ -68,7 +68,7 @@ class DbPvDataSource(PvDataSource):
 
     When the `READ_FROM_DATA_PLATFORM` environment variable is set to "true", generation
     power values and location metadata (latitude, longitude, capacity_kw) are instead
-    read from the Data Platform, matched to each site via its `client_location_name`.
+    read from the Data Platform, matched to each site by location name.
     `tilt` and `orientation` have no native Data Platform field; when available they're
     read from the location's `metadata` Struct (see `fetch_location_for_one_site_from_dp`),
     falling back to the database for sites not yet backfilled with that metadata.
@@ -98,7 +98,7 @@ class DbPvDataSource(PvDataSource):
         return sites
 
     def _get_dp_sites(self) -> dict[str, LocationSQL]:
-        """Solar sites from the Data Platform, keyed by location uuid."""
+        """Solar sites from the Data Platform, keyed by location name."""
         if self._dp_location_map is None:
             self._dp_location_map = _run_async(fetch_dp_sites_location_map())
 

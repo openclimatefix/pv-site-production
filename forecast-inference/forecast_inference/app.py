@@ -22,14 +22,12 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from forecast_inference.data.nwp_data_sources import (
     download_and_add_osgb_to_nwp_data_source,
 )
-from forecast_inference.data.pv_data_sources import (
-    DbPvDataSource,
-    load_sites_from_data_platform,
-)
+from forecast_inference.data.pv_data_sources import DbPvDataSource
 from forecast_inference.data_platform import (
     DataPlatformClient,
     LocationSummary,
     fetch_dp_location_map,
+    find_dp_location,
     get_dataplatform_client,
     save_forecast_to_dataplatform,
 )
@@ -59,6 +57,23 @@ sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")
 sentry_sdk.set_tag("version", version)
 
 
+
+
+def _pv_id_to_site_uuid(pv_id: PvId) -> UUID:
+    """Get the database site uuid from a pv id.
+
+    Location names can't have hyphens, so a uuid in a name has underscores.
+    """
+    return UUID(pv_id.replace("_", "-"))
+
+
+async def _run_one_pv_and_continue_on_error(**kwargs) -> bool:
+    """Run one PV, so that a failing site doesn't stop the other sites from being saved."""
+    try:
+        return await _run_model_and_save_for_one_pv(**kwargs)
+    except Exception:
+        log.exception(f'Failed to save the forecast for pv_id="{kwargs["pv_id"]}". Skipping.')
+        return False
 
 
 async def _run_model_and_save_for_one_pv(
@@ -93,8 +108,6 @@ async def _run_model_and_save_for_one_pv(
             )
             return False
 
-    site_uuid = UUID(pv_id)
-
     # Assemble the data in ForecastValuesSQL rows for the database.
     rows = [
         {
@@ -107,6 +120,7 @@ async def _run_model_and_save_for_one_pv(
     ]
 
     if write_to_db:
+        site_uuid = _pv_id_to_site_uuid(pv_id)
         with (
             profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'),
             database_connection.get_session() as session,
@@ -140,9 +154,12 @@ async def _run_model_and_save_for_one_pv(
     # Optionally push to the Data Platform
     if save_to_data_platform and site_meta is not None and client is not None:
         log.info(f"Saving to Data Platform for pv_id={pv_id}...")
+        location = find_dp_location(dp_location_map, pv_id, site_meta["client_location_name"])
         await save_forecast_to_dataplatform(
             rows=rows,
-            client_location_name=site_meta["client_location_name"],
+            client_location_name=(
+                location.location_name if location else site_meta["client_location_name"]
+            ),
             model_tag="pv-site-production",
             init_time_utc=timestamp,
             client=client,
@@ -233,10 +250,6 @@ def main(
     if timestamp is not None and round_date_to_minutes is not None:
         raise RuntimeError("You can not use both --date and --round-date-to-minutes")
 
-    # Data Platform site uuids are not the same as in the site database, so forecasts can't be saved there
-    if write_to_db and load_sites_from_data_platform():
-        raise RuntimeError("WRITE_TO_DB can not be used with LOAD_SITES_FROM_DATA_PLATFORM")
-
     log.debug("Load the configuration file")
     # Typically the configuration will contain many placeholders pointing to environment variables.
     # We allow specifying them in a .env file. See the .env.dist for a list of expected variables.
@@ -300,7 +313,7 @@ def main(
                 dp_location_map = await fetch_dp_location_map(client)
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
                 for pv_id in pv_ids:
-                    success = await _run_model_and_save_for_one_pv(
+                    success = await _run_one_pv_and_continue_on_error(
                         database_connection=database_connection,
                         model=model,
                         pv_id=pv_id,
@@ -316,7 +329,7 @@ def main(
                         num_successes += 1
         else:
             for pv_id in pv_ids:
-                success = await _run_model_and_save_for_one_pv(
+                success = await _run_one_pv_and_continue_on_error(
                     database_connection=database_connection,
                     model=model,
                     pv_id=pv_id,

@@ -6,7 +6,6 @@ import asyncio
 import logging
 import os
 from datetime import UTC, timedelta
-from uuid import UUID
 
 import pandas as pd
 from ocf import dp
@@ -16,8 +15,8 @@ from pvsite_datamodel.sqlmodels import LocationSQL
 from forecast_inference.data_platform.client import (
     DataPlatformClient,
     LocationSummary,
-    _sanitize,
     fetch_dp_location_map,
+    find_dp_location,
     get_dataplatform_client,
 )
 
@@ -40,14 +39,9 @@ async def fetch_generation_for_one_site_from_dp(
     observer_name: str | None = None,
 ) -> list[tuple[Timestamp, float]]:
     """Fetch generation (observation) data from the Data Platform for a single site."""
-    if not site.client_location_name:
-        log.warning(f"Site {site.location_uuid} has no client_location_name, skipping DP")
-        return []
-
-    name = _sanitize(site.client_location_name)
-    summary = loc_map.get(name)
+    summary = find_dp_location(loc_map, site.location_uuid, site.client_location_name)
     if not summary:
-        log.warning(f"Site {name!r} not found in Data Platform")
+        log.warning(f"Site {site.location_uuid} not found in Data Platform")
         return []
 
     actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "pv_site_api")
@@ -107,11 +101,7 @@ def fetch_location_for_one_site_from_dp(
     which write them there). When absent from `metadata` (e.g. not yet backfilled), the key
     is omitted here so the caller falls back to the database value instead of a bare `None`.
     """
-    if not site.client_location_name:
-        return None
-
-    name = _sanitize(site.client_location_name)
-    summary = loc_map.get(name)
+    summary = find_dp_location(loc_map, site.location_uuid, site.client_location_name)
     if not summary:
         return None
 
@@ -139,9 +129,12 @@ async def fetch_dp_sites_location_map() -> dict[str, LocationSummary]:
 
 
 def dp_location_to_site(summary: LocationSummary) -> LocationSQL:
-    """Make a site from a Data Platform location, so it can be used like a database site."""
+    """Make a site from a Data Platform location, so it can be used like a database site.
+
+    The location name is used as the site's id.
+    """
     return LocationSQL(
-        location_uuid=UUID(summary.location_uuid),
+        location_uuid=summary.location_name,
         client_location_name=summary.location_name,
         latitude=summary.latlng.latitude,
         longitude=summary.latlng.longitude,

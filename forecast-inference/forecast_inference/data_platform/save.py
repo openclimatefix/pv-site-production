@@ -47,7 +47,7 @@ async def resolve_target_uuid(
         )
         return summary.location_uuid
 
-    log.warning(f"DP location '{client_location_name}' not found — will create it.")
+    log.warning(f"DP location '{client_location_name}' not found.")
     return None
 
 
@@ -224,25 +224,9 @@ async def save_forecast_to_dataplatform(
     )
 
     if target_uuid_str is None:
-        log.warning(
-            f"location {client_location_name!r} not in DP — creating it  "
-            f"(capacity_kw={capacity_kw}, lat={latitude}, lon={longitude})",
-        )
-        target_uuid_str = await create_new_location(
-            client,
-            client_location_name,
-            capacity_kw,
-            latitude,
-            longitude,
-            init_time_utc_dt,
-            location_type=dp.LocationType.SITE,
-            energy_source=energy_source,
-        )
-        log.info(f"created location uuid={target_uuid_str}")
-        capacity_watts = int(capacity_kw * 1000)
-    else:
-        log.info(f"location already exists uuid={target_uuid_str}")
-        capacity_watts = location_map[client_location_name].effective_capacity_watts
+        raise ValueError(f"location {client_location_name!r} not in DP")
+
+    capacity_watts = location_map[client_location_name].effective_capacity_watts
 
     log.info(f"capacity_watts={capacity_watts:,}  ({capacity_watts / 1000:,.1f} kW)")
 
