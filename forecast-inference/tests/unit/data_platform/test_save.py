@@ -5,20 +5,17 @@ These tests require no Docker or network access — they test pure logic only.
 
 import asyncio
 import datetime as dt
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
-from ocf import dp
 
 from forecast_inference.app import _run_model_and_save_for_one_pv
 from forecast_inference.data_platform.client import (
     _sanitize,
-    fetch_dp_location_map,
     find_dp_location,
 )
 from forecast_inference.data_platform.save import (
     prepare_forecast_values,
-    save_forecast_to_dataplatform,
 )
 
 
