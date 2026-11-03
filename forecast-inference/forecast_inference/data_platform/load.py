@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 from datetime import UTC, timedelta
+from uuid import UUID
 
 import pandas as pd
 from ocf import dp
@@ -21,6 +22,18 @@ from forecast_inference.data_platform.client import (
 )
 
 log = logging.getLogger(__name__)
+
+
+def load_sites_from_data_platform() -> bool:
+    """Whether the sites to forecast are loaded from the Data Platform."""
+    return os.getenv("LOAD_SITES_FROM_DATA_PLATFORM", "false").lower() == "true"
+
+
+def site_id(site: LocationSQL) -> str:
+    """The pv id of a site: its location name for Data Platform sites, else its uuid."""
+    if load_sites_from_data_platform():
+        return site.client_location_name
+    return str(site.location_uuid)
 
 
 def _ensure_timezone_aware(ts: Timestamp) -> Timestamp:
@@ -134,7 +147,7 @@ def dp_location_to_site(summary: LocationSummary) -> LocationSQL:
     The location name is used as the site's id.
     """
     return LocationSQL(
-        location_uuid=summary.location_name,
+        location_uuid=UUID(summary.location_uuid),
         client_location_name=summary.location_name,
         latitude=summary.latlng.latitude,
         longitude=summary.latlng.longitude,
@@ -160,7 +173,7 @@ async def get_generation_from_dp(
     )
 
     records = [
-        {"id": str(site.location_uuid), "ts": t.replace(tzinfo=None), "power": power_kw}
+        {"id": site_id(site), "ts": t.replace(tzinfo=None), "power": power_kw}
         for site, site_generation in zip(sites, generations)
         for t, power_kw in site_generation
     ]
@@ -179,7 +192,7 @@ def get_locations_from_dp(
     for sites that were found in the Data Platform.
     """
     return {
-        str(site.location_uuid): location
+        site_id(site): location
         for site in sites
         if (location := fetch_location_for_one_site_from_dp(loc_map, site)) is not None
     }
