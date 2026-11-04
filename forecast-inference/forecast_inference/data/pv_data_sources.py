@@ -24,8 +24,8 @@ from forecast_inference.data_platform.load import (
     dp_location_to_site,
     fetch_dp_sites_location_map,
     fetch_generation_and_locations_from_dp,
+    get_site_id,
     load_sites_from_data_platform,
-    site_id,
 )
 
 META_KEYS = [
@@ -104,7 +104,7 @@ class DbPvDataSource(PvDataSource):
             for summary in self._dp_location_map.values()
             if summary.energy_source == dp.EnergySource.SOLAR
         ]
-        return {site_id(site): site for site in sites}
+        return {get_site_id(site): site for site in sites}
 
     def get(
         self,
@@ -201,8 +201,8 @@ class DbPvDataSource(PvDataSource):
         # Platform (when reading from there), falling back to the database for sites the DP
         # doesn't know about, and for tilt/orientation when not yet present in DP metadata.
         meta = {
-            site_id(site): {
-                key: dp_locations.get(site_id(site), {}).get(
+            get_site_id(site): {
+                key: dp_locations.get(get_site_id(site), {}).get(
                     key, _to_float(getattr(site, key))
                 )
                 for key in META_KEYS
@@ -248,7 +248,7 @@ class DbPvDataSource(PvDataSource):
                 )
 
         return {
-            site_id(site): {
+            get_site_id(site): {
                 "client_location_name": site.client_location_name,
                 "capacity_kw": site.capacity_kw,
                 "latitude": site.latitude,

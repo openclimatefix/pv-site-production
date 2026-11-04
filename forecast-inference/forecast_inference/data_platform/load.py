@@ -29,7 +29,7 @@ def load_sites_from_data_platform() -> bool:
     return os.getenv("LOAD_SITES_FROM_DATA_PLATFORM", "false").lower() == "true"
 
 
-def site_id(site: LocationSQL) -> str:
+def get_site_id(site: LocationSQL) -> str:
     """The pv id of a site: its location name for Data Platform sites, else its uuid."""
     if load_sites_from_data_platform():
         return site.client_location_name
@@ -173,7 +173,7 @@ async def get_generation_from_dp(
     )
 
     records = [
-        {"id": site_id(site), "ts": t.replace(tzinfo=None), "power": power_kw}
+        {"id": get_site_id(site), "ts": t.replace(tzinfo=None), "power": power_kw}
         for site, site_generation in zip(sites, generations)
         for t, power_kw in site_generation
     ]
@@ -192,7 +192,7 @@ def get_locations_from_dp(
     for sites that were found in the Data Platform.
     """
     return {
-        site_id(site): location
+        get_site_id(site): location
         for site in sites
         if (location := fetch_location_for_one_site_from_dp(loc_map, site)) is not None
     }
