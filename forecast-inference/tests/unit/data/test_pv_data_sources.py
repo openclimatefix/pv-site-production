@@ -410,21 +410,45 @@ class TestDbPvDataSourceReadsFromDataPlatform:
 
         mock_fetch_loc_map.assert_called_once()
 
+    def test_finds_location_named_with_site_uuid(self, monkeypatch, database_connection, dp_site):
+        monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "true")
+        site_uuid = str(dp_site.location_uuid)
+
+        mock_client = AsyncMock()
+        mock_client.get_observations_as_timeseries.return_value = MagicMock(values=[])
+
+        with (
+            patch(
+                "forecast_inference.data_platform.load.get_dataplatform_client",
+                return_value=_mock_dp_context(mock_client),
+            ),
+            patch(
+                "forecast_inference.data_platform.load.fetch_dp_location_map",
+                new=AsyncMock(return_value={_sanitize(site_uuid): _mock_summary(latitude=52.5)}),
+            ),
+        ):
+            result = DbPvDataSource(database_connection).get(
+                [site_uuid],
+                start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
+                end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
+            )
+
+        assert result["latitude"].sel(id=site_uuid).item() == pytest.approx(52.5)
+
 
 class TestDbPvDataSourceLoadsSitesFromDataPlatform:
     """Test `DbPvDataSource` with `LOAD_SITES_FROM_DATA_PLATFORM=true`."""
 
-    def test_lists_and_gets_solar_sites_from_dp(self, monkeypatch, database_connection):
+    def test_lists_and_gets_sites_by_location_name(self, monkeypatch, database_connection):
         monkeypatch.setenv("LOAD_SITES_FROM_DATA_PLATFORM", "true")
-        site_uuid = str(uuid.uuid4())
+        site_id = "dp_solar_site"
 
         solar_summary = _mock_summary(capacity_watts=3000)
-        solar_summary.location_uuid = site_uuid
-        solar_summary.location_name = "dp_solar_site"
+        solar_summary.location_uuid = str(uuid.uuid4())
+        solar_summary.location_name = site_id
         solar_summary.energy_source = dp.EnergySource.SOLAR
 
         wind_summary = _mock_summary()
-        wind_summary.location_uuid = str(uuid.uuid4())
         wind_summary.location_name = "dp_wind_site"
         wind_summary.energy_source = dp.EnergySource.WIND
 
@@ -456,7 +480,9 @@ class TestDbPvDataSourceLoadsSitesFromDataPlatform:
                 end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
             )
 
-        # Only the solar site is loaded, and its generation comes from the DP
-        assert pv_ids == [site_uuid]
-        assert result["capacity"].sel(id=site_uuid).item() == pytest.approx(3.0)
-        assert result["power"].sel(id=site_uuid).values[0] == pytest.approx(1.5)
+        # The pv id is the location name, and generation is read with the location uuid
+        assert pv_ids == [site_id]
+        assert result["capacity"].sel(id=site_id).item() == pytest.approx(3.0)
+        assert result["power"].sel(id=site_id).values[0] == pytest.approx(1.5)
+        req = mock_client.get_observations_as_timeseries.call_args[0][0]
+        assert req.location_uuid == solar_summary.location_uuid

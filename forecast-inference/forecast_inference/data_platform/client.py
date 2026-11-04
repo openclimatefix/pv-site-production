@@ -54,6 +54,18 @@ async def fetch_dp_location_map(
     Pre-fetching once avoids separate list_locations calls for every forecast save.
     """
     resp = await client.list_locations(
-        dp.ListLocationsRequest(location_type_filter=[location_type])
+        dp.ListLocationsRequest(location_type_filter=location_type)
     )
     return {loc.location_name: loc for loc in resp.locations}
+
+
+def find_dp_location(
+    loc_map: dict[str, LocationSummary],
+    site_id: object,
+    client_location_name: str | None,
+) -> LocationSummary | None:
+    """Find a site's DP location by name: its id, or else its client name."""
+    summary = loc_map.get(_sanitize(str(site_id)))
+    if summary is None and client_location_name:
+        summary = loc_map.get(_sanitize(client_location_name))
+    return summary

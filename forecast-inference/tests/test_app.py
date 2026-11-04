@@ -1,6 +1,7 @@
 import logging
 import pathlib
 from datetime import datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from freezegun import freeze_time
@@ -63,13 +64,23 @@ def test_app_can_not_use_both_date_and_round_to_minutes(now):
     assert "can not use both" in str(result.exception)
 
 
-def test_app_can_not_write_to_db_with_sites_from_data_platform(monkeypatch):
-    monkeypatch.setenv("LOAD_SITES_FROM_DATA_PLATFORM", "true")
-    cmd_args = ["--config", "tests/fixtures/model_configs/cos.yaml", "--write-to-db"]
+def test_app_runs_every_site_then_fails_when_a_site_fails(monkeypatch):
+    monkeypatch.delenv("SAVE_TO_DATA_PLATFORM", raising=False)
+    cmd_args = ["--config", "tests/fixtures/model_configs/cos.yaml", "--raise-on-failure"]
 
-    result = run_click_script(main, cmd_args, catch_exceptions=True)
+    with (
+        patch("forecast_inference.app.DbPvDataSource.list_pv_ids", return_value=["bad", "good"]),
+        patch("forecast_inference.app.DbPvDataSource.get_site_metadata", return_value={}),
+        patch(
+            "forecast_inference.app._run_model_and_save_for_one_pv",
+            new=AsyncMock(side_effect=[RuntimeError("boom"), True]),
+        ) as mock_run,
+    ):
+        result = run_click_script(main, cmd_args, catch_exceptions=True)
+
+    assert mock_run.call_count == 2
     assert result.exit_code != 0
-    assert "LOAD_SITES_FROM_DATA_PLATFORM" in str(result.exception)
+    assert "1 PV site(s) failed" in str(result.exception)
 
 
 @pytest.mark.parametrize(

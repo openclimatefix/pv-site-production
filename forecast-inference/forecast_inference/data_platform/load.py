@@ -16,12 +16,24 @@ from pvsite_datamodel.sqlmodels import LocationSQL
 from forecast_inference.data_platform.client import (
     DataPlatformClient,
     LocationSummary,
-    _sanitize,
     fetch_dp_location_map,
+    find_dp_location,
     get_dataplatform_client,
 )
 
 log = logging.getLogger(__name__)
+
+
+def load_sites_from_data_platform() -> bool:
+    """Whether the sites to forecast are loaded from the Data Platform."""
+    return os.getenv("LOAD_SITES_FROM_DATA_PLATFORM", "false").lower() == "true"
+
+
+def get_site_id(site: LocationSQL) -> str:
+    """The pv id of a site: its location name for Data Platform sites, else its uuid."""
+    if load_sites_from_data_platform():
+        return site.client_location_name
+    return str(site.location_uuid)
 
 
 def _ensure_timezone_aware(ts: Timestamp) -> Timestamp:
@@ -40,14 +52,9 @@ async def fetch_generation_for_one_site_from_dp(
     observer_name: str | None = None,
 ) -> list[tuple[Timestamp, float]]:
     """Fetch generation (observation) data from the Data Platform for a single site."""
-    if not site.client_location_name:
-        log.warning(f"Site {site.location_uuid} has no client_location_name, skipping DP")
-        return []
-
-    name = _sanitize(site.client_location_name)
-    summary = loc_map.get(name)
+    summary = find_dp_location(loc_map, site.location_uuid, site.client_location_name)
     if not summary:
-        log.warning(f"Site {name!r} not found in Data Platform")
+        log.warning(f"Site {site.location_uuid} not found in Data Platform")
         return []
 
     actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "pv_site_api")
@@ -107,11 +114,7 @@ def fetch_location_for_one_site_from_dp(
     which write them there). When absent from `metadata` (e.g. not yet backfilled), the key
     is omitted here so the caller falls back to the database value instead of a bare `None`.
     """
-    if not site.client_location_name:
-        return None
-
-    name = _sanitize(site.client_location_name)
-    summary = loc_map.get(name)
+    summary = find_dp_location(loc_map, site.location_uuid, site.client_location_name)
     if not summary:
         return None
 
@@ -139,7 +142,10 @@ async def fetch_dp_sites_location_map() -> dict[str, LocationSummary]:
 
 
 def dp_location_to_site(summary: LocationSummary) -> LocationSQL:
-    """Make a site from a Data Platform location, so it can be used like a database site."""
+    """Make a site from a Data Platform location, so it can be used like a database site.
+
+    The location name is used as the site's id.
+    """
     return LocationSQL(
         location_uuid=UUID(summary.location_uuid),
         client_location_name=summary.location_name,
@@ -167,7 +173,7 @@ async def get_generation_from_dp(
     )
 
     records = [
-        {"id": str(site.location_uuid), "ts": t.replace(tzinfo=None), "power": power_kw}
+        {"id": get_site_id(site), "ts": t.replace(tzinfo=None), "power": power_kw}
         for site, site_generation in zip(sites, generations)
         for t, power_kw in site_generation
     ]
@@ -186,7 +192,7 @@ def get_locations_from_dp(
     for sites that were found in the Data Platform.
     """
     return {
-        str(site.location_uuid): location
+        get_site_id(site): location
         for site in sites
         if (location := fetch_location_for_one_site_from_dp(loc_map, site)) is not None
     }

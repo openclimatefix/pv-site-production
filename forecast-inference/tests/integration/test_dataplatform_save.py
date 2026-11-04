@@ -211,6 +211,14 @@ def test_save_forecast_special_chars_location_name(
 
     async def _run():
         async with get_dataplatform_client() as client:
+            await _setup_test_location_in_dp(
+                client,
+                site_meta_special_chars["client_location_name"],
+                site_meta_special_chars["capacity_kw"],
+                site_meta_special_chars["latitude"],
+                site_meta_special_chars["longitude"],
+            )
+
             # Should not raise — the sanitizer handles all special chars
             await save_forecast_to_dataplatform(
                 rows=forecast_rows,
