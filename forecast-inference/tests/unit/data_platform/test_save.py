@@ -5,65 +5,62 @@ These tests require no Docker or network access — they test pure logic only.
 
 import asyncio
 import datetime as dt
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from betterproto.lib.google.protobuf import Struct, Value
 
 from forecast_inference.app import _run_model_and_save_for_one_pv
 from forecast_inference.data_platform.client import (
     _sanitize,
-    find_dp_location,
+    get_dp_site_id,
 )
 from forecast_inference.data_platform.save import (
     prepare_forecast_values,
 )
 
-
-class TestFindDpLocation:
-    """A site's location is found by name: its id, or else its client name."""
-
-    # the uuid that is stored in the database
-    site_uuid = "006a6820-7470-483f-9c74-14e9c76ab47a"
-
-    # this is what the location name looks like when we have renamed it in data-platform
-    uuid_name = "006a6820_7470_483f_9c74_14e9c76ab47a"
-
-    def test_prefers_uuid_name(self):
-        loc_map = {self.uuid_name: "by_uuid", "bf_home": "by_name"}
-        assert find_dp_location(loc_map, self.site_uuid, "BF Home") == "by_uuid"
-
-    def test_falls_back_to_client_name(self):
-        assert find_dp_location({"bf_home": "by_name"}, self.site_uuid, "BF Home") == "by_name"
-
-    def test_not_found(self):
-        assert find_dp_location({}, self.site_uuid, None) is None
+db_uuid = "006a6820-7470-483f-9c74-14e9c76ab47a"
+dp_uuid = "019fc790-3e76-75ef-b212-9ff6f023cf40"
 
 
-@pytest.mark.parametrize("write_to_db", [True, False])
-def test_location_name_is_only_a_uuid_when_writing_to_db(write_to_db):
+class TestGetDpSiteId:
+    """A DP location's site id is its database uuid, or else its DP uuid."""
+
+    def test_uses_site_database_uuid(self):
+        summary = MagicMock(location_uuid=dp_uuid)
+        summary.metadata = Struct(fields={"site_database_uuid": Value(string_value=db_uuid)})
+        assert get_dp_site_id(summary) == db_uuid
+
+    def test_falls_back_to_location_uuid(self):
+        summary = MagicMock(location_uuid=dp_uuid, metadata=Struct())
+        assert get_dp_site_id(summary) == dp_uuid
+
+
+def test_saves_to_the_dp_location_of_the_pv_id():
     model = MagicMock()
     model.config.horizons = [(0, 15)]
     model.predict.return_value = MagicMock(powers=[1.0])
-    pv_id = "006a6820_7470_483f_9c74_14e9c76ab47a" if write_to_db else "bf_home"
-    database_connection = MagicMock()
+    location = MagicMock()
 
-    success = asyncio.run(
-        _run_model_and_save_for_one_pv(
-            database_connection=database_connection,
-            model=model,
-            pv_id=pv_id,
-            timestamp=dt.datetime(2024, 1, 1),
-            write_to_db=write_to_db,
-            print_to_stdout=False,
+    with patch(
+        "forecast_inference.app.save_forecast_to_dataplatform", new=AsyncMock()
+    ) as mock_save:
+        success = asyncio.run(
+            _run_model_and_save_for_one_pv(
+                database_connection=MagicMock(),
+                model=model,
+                pv_id=db_uuid,
+                timestamp=dt.datetime(2024, 1, 1),
+                write_to_db=False,
+                print_to_stdout=False,
+                save_to_data_platform=True,
+                client=MagicMock(),
+                dp_location_map={db_uuid: location},
+            )
         )
-    )
 
     assert success is True
-    assert database_connection.get_session.called is write_to_db
-    if write_to_db:
-        session = database_connection.get_session.return_value.__enter__.return_value
-        forecast = session.add.call_args[0][0]
-        assert str(forecast.location_uuid) == "006a6820-7470-483f-9c74-14e9c76ab47a"
+    assert mock_save.call_args.kwargs["location"] is location
 
 
 class TestSanitization:

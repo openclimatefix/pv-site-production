@@ -27,7 +27,6 @@ from forecast_inference.data_platform import (
     DataPlatformClient,
     LocationSummary,
     fetch_dp_location_map,
-    find_dp_location,
     get_dataplatform_client,
     save_forecast_to_dataplatform,
 )
@@ -59,14 +58,6 @@ sentry_sdk.set_tag("version", version)
 
 
 
-def _pv_id_to_site_uuid(pv_id: PvId) -> UUID:
-    """Get the database site uuid from a pv id.
-
-    Location names can't have hyphens, so a uuid in a name has underscores.
-    """
-    return UUID(pv_id.replace("_", "-"))
-
-
 async def _run_one_pv_and_continue_on_error(**kwargs) -> bool:
     """Run one PV, so that a failing site doesn't stop the other sites from being saved."""
     try:
@@ -84,7 +75,6 @@ async def _run_model_and_save_for_one_pv(
     write_to_db: bool,
     print_to_stdout: bool,
     save_to_data_platform: bool = False,
-    site_meta: dict | None = None,
     client: DataPlatformClient | None = None,
     dp_location_map: dict[str, LocationSummary] | None = None,
 ) -> bool:
@@ -92,8 +82,7 @@ async def _run_model_and_save_for_one_pv(
     Run model and save to database for one PV.
 
     When save_to_data_platform is True, also pushes the forecast to the Data Platform
-    after a successful DB write. site_meta must contain client_location_name, capacity_kw,
-    latitude, and longitude for the given pv_id.
+    after a successful DB write.
 
     Return:
     ------
@@ -120,7 +109,7 @@ async def _run_model_and_save_for_one_pv(
     ]
 
     if write_to_db:
-        site_uuid = _pv_id_to_site_uuid(pv_id)
+        site_uuid = UUID(pv_id)
         with (
             profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'),
             database_connection.get_session() as session,
@@ -152,21 +141,17 @@ async def _run_model_and_save_for_one_pv(
             print(f" | {row['start_utc']}" f" | {row['end_utc']}" f" | {row['forecast_power_kw']}")
 
     # Optionally push to the Data Platform
-    if save_to_data_platform and site_meta is not None and client is not None:
+    if save_to_data_platform and client is not None:
         log.info(f"Saving to Data Platform for pv_id={pv_id}...")
-        location = find_dp_location(dp_location_map, pv_id, site_meta["client_location_name"])
+        location = dp_location_map.get(pv_id)
+        if location is None:
+            raise ValueError(f"pv_id={pv_id} not in the Data Platform")
         await save_forecast_to_dataplatform(
             rows=rows,
-            client_location_name=(
-                location.location_name if location else site_meta["client_location_name"]
-            ),
+            location=location,
             model_tag="pv-site-production",
             init_time_utc=timestamp,
             client=client,
-            capacity_kw=site_meta["capacity_kw"],
-            latitude=site_meta["latitude"],
-            longitude=site_meta["longitude"],
-            location_map=dp_location_map,
         )
         log.info(f"Saving to Data Platform completed for pv_id={pv_id}")
 
@@ -292,7 +277,6 @@ def main(
     with profile("Loading model"):
         model: PvSiteModel = get_model(config, pv_data_source)
 
-    # Site uuids when reading from the database, location names when reading from the DP
     pv_ids = pv_data_source.list_pv_ids()
     log.info(f"Found {len(pv_ids)} sites")
 
@@ -302,10 +286,6 @@ def main(
 
     # Read Data Platform flag
     save_to_dp = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
-
-    # Pre-fetch site metadata (single DB query via pv_data_source — avoids per-PV round-trips)
-    site_metadata = pv_data_source.get_site_metadata()
-    log.info(f"Pre-fetched metadata for {len(site_metadata)} sites")
 
     async def _run_app():
         num_successes = 0
@@ -322,7 +302,6 @@ def main(
                         write_to_db=write_to_db,
                         print_to_stdout=not write_to_db and not no_print_to_stdout,
                         save_to_data_platform=True,
-                        site_meta=site_metadata.get(pv_id),
                         client=client,
                         dp_location_map=dp_location_map,
                     )
@@ -338,7 +317,6 @@ def main(
                     write_to_db=write_to_db,
                     print_to_stdout=not write_to_db and not no_print_to_stdout,
                     save_to_data_platform=False,
-                    site_meta=site_metadata.get(pv_id),
                 )
                 if success:
                     num_successes += 1

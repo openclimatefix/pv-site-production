@@ -18,6 +18,7 @@ from ocf import dp
 from forecast_inference.data_platform.client import (
     DataPlatformClient,
     _sanitize,
+    fetch_dp_location_map,
     get_dataplatform_client,
 )
 from forecast_inference.data_platform.save import (
@@ -173,15 +174,13 @@ def test_save_forecast_to_dataplatform_integration(
             )
 
             # 2. Save forecast via our function
+            location_map = await fetch_dp_location_map(client)
             await save_forecast_to_dataplatform(
                 rows=forecast_rows,
-                client_location_name=site_meta_clean["client_location_name"],
+                location=location_map[dp_location_uuid],
                 model_tag="pv-site-production",
                 init_time_utc=init_time,
                 client=client,
-                capacity_kw=site_meta_clean["capacity_kw"],
-                latitude=site_meta_clean["latitude"],
-                longitude=site_meta_clean["longitude"],
             )
 
             # 3. Verify in DP
@@ -211,7 +210,7 @@ def test_save_forecast_special_chars_location_name(
 
     async def _run():
         async with get_dataplatform_client() as client:
-            await _setup_test_location_in_dp(
+            dp_location_uuid = await _setup_test_location_in_dp(
                 client,
                 site_meta_special_chars["client_location_name"],
                 site_meta_special_chars["capacity_kw"],
@@ -220,15 +219,13 @@ def test_save_forecast_special_chars_location_name(
             )
 
             # Should not raise — the sanitizer handles all special chars
+            location_map = await fetch_dp_location_map(client)
             await save_forecast_to_dataplatform(
                 rows=forecast_rows,
-                client_location_name=site_meta_special_chars["client_location_name"],
+                location=location_map[dp_location_uuid],
                 model_tag="pv-site-production",
                 init_time_utc=init_time,
                 client=client,
-                capacity_kw=site_meta_special_chars["capacity_kw"],
-                latitude=site_meta_special_chars["latitude"],
-                longitude=site_meta_special_chars["longitude"],
             )
 
             # Confirm the sanitized name exists in DP
@@ -257,7 +254,7 @@ def test_location_reused_on_second_save(
     async def _run():
         async with get_dataplatform_client() as client:
             # Pre-create location
-            await _setup_test_location_in_dp(
+            dp_location_uuid = await _setup_test_location_in_dp(
                 client,
                 site_meta_clean["client_location_name"],
                 site_meta_clean["capacity_kw"],
@@ -266,16 +263,14 @@ def test_location_reused_on_second_save(
             )
 
             # Save twice — second call must not raise even though location already exists
+            location_map = await fetch_dp_location_map(client)
             for _ in range(2):
                 await save_forecast_to_dataplatform(
                     rows=forecast_rows,
-                    client_location_name=site_meta_clean["client_location_name"],
+                    location=location_map[dp_location_uuid],
                     model_tag="pv-site-production",
                     init_time_utc=init_time,
                     client=client,
-                    capacity_kw=site_meta_clean["capacity_kw"],
-                    latitude=site_meta_clean["latitude"],
-                    longitude=site_meta_clean["longitude"],
                 )
 
             # Confirm only one location with this name in DP

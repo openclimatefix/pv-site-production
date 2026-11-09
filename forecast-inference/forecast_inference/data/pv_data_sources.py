@@ -24,7 +24,6 @@ from forecast_inference.data_platform.load import (
     dp_location_to_site,
     fetch_dp_sites_location_map,
     fetch_generation_and_locations_from_dp,
-    get_site_id,
     load_sites_from_data_platform,
 )
 
@@ -65,7 +64,7 @@ class DbPvDataSource(PvDataSource):
 
     When the `READ_FROM_DATA_PLATFORM` environment variable is set to "true", generation
     power values and location metadata (latitude, longitude, capacity_kw) are instead
-    read from the Data Platform, matched to each site by location name.
+    read from the Data Platform, matched to each site by its location_uuid.
     `tilt` and `orientation` have no native Data Platform field; when available they're
     read from the location's `metadata` Struct (see `fetch_location_for_one_site_from_dp`),
     falling back to the database for sites not yet backfilled with that metadata.
@@ -95,7 +94,7 @@ class DbPvDataSource(PvDataSource):
         return sites
 
     def _get_dp_sites(self) -> dict[str, LocationSQL]:
-        """Solar sites from the Data Platform, keyed by location name."""
+        """Solar sites from the Data Platform, keyed by location_uuid."""
         if self._dp_location_map is None:
             self._dp_location_map = _run_async(fetch_dp_sites_location_map())
 
@@ -104,7 +103,7 @@ class DbPvDataSource(PvDataSource):
             for summary in self._dp_location_map.values()
             if summary.energy_source == dp.EnergySource.SOLAR
         ]
-        return {get_site_id(site): site for site in sites}
+        return {str(site.location_uuid): site for site in sites}
 
     def get(
         self,
@@ -201,8 +200,8 @@ class DbPvDataSource(PvDataSource):
         # Platform (when reading from there), falling back to the database for sites the DP
         # doesn't know about, and for tilt/orientation when not yet present in DP metadata.
         meta = {
-            get_site_id(site): {
-                key: dp_locations.get(get_site_id(site), {}).get(
+            str(site.location_uuid): {
+                key: dp_locations.get(str(site.location_uuid), {}).get(
                     key, _to_float(getattr(site, key))
                 )
                 for key in META_KEYS
@@ -248,7 +247,7 @@ class DbPvDataSource(PvDataSource):
                 )
 
         return {
-            get_site_id(site): {
+            str(site.location_uuid): {
                 "client_location_name": site.client_location_name,
                 "capacity_kw": site.capacity_kw,
                 "latitude": site.latitude,
