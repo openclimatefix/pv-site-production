@@ -9,11 +9,11 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from betterproto.lib.google.protobuf import Value
 from ocf import dp
 from pvsite_datamodel.sqlmodels import LocationSQL
 
 from forecast_inference.data.pv_data_sources import DbPvDataSource
-from forecast_inference.data_platform.client import _sanitize
 from forecast_inference.data_platform.load import (
     fetch_generation_for_one_site_from_dp,
     fetch_location_for_one_site_from_dp,
@@ -66,7 +66,7 @@ class TestFetchGenerationFromDp:
 
         mock_summary = MagicMock()
         mock_summary.location_uuid = "dp-uuid-123"
-        loc_map = {_sanitize(dp_site_name): mock_summary}
+        loc_map = {str(dp_site.location_uuid): mock_summary}
 
         data = asyncio.run(
             fetch_generation_for_one_site_from_dp(
@@ -119,7 +119,7 @@ class TestFetchLocationFromDp:
     """Test the module-level `fetch_location_for_one_site_from_dp` helper."""
 
     def test_returns_latitude_longitude_and_capacity(self, dp_site):
-        loc_map = {_sanitize(dp_site_name): _mock_summary()}
+        loc_map = {str(dp_site.location_uuid): _mock_summary()}
 
         location = fetch_location_for_one_site_from_dp(loc_map, dp_site)
 
@@ -135,20 +135,13 @@ class TestFetchLocationFromDp:
         )
         assert location is None
 
-    def test_site_without_client_location_name_returns_none(self, dp_site):
-        dp_site.client_location_name = None
-        location = fetch_location_for_one_site_from_dp(
-            {_sanitize(dp_site_name): _mock_summary()}, dp_site
-        )
-        assert location is None
-
     def test_includes_tilt_and_orientation_when_present_in_metadata(self, dp_site):
         tilt_value = MagicMock()
         tilt_value.number_value = 35.0
         orientation_value = MagicMock()
         orientation_value.number_value = 170.0
         loc_map = {
-            _sanitize(dp_site_name): _mock_summary(
+            str(dp_site.location_uuid): _mock_summary(
                 metadata_fields={"tilt": tilt_value, "orientation": orientation_value}
             )
         }
@@ -165,7 +158,7 @@ class TestFetchLocationFromDp:
 
     def test_omits_tilt_and_orientation_when_absent_from_metadata(self, dp_site):
         """No `tilt`/`orientation` keys in DP metadata → caller falls back to the database."""
-        loc_map = {_sanitize(dp_site_name): _mock_summary(metadata_fields={})}
+        loc_map = {str(dp_site.location_uuid): _mock_summary(metadata_fields={})}
 
         location = fetch_location_for_one_site_from_dp(loc_map, dp_site)
 
@@ -207,7 +200,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
             ),
             patch(
                 "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
+                new=AsyncMock(return_value={str(dp_site.location_uuid): mock_summary}),
             ),
         ):
             pv_data_source = DbPvDataSource(database_connection)
@@ -262,7 +255,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
             ),
             patch(
                 "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
+                new=AsyncMock(return_value={str(dp_site.location_uuid): mock_summary}),
             ),
         ):
             pv_data_source = DbPvDataSource(database_connection)
@@ -360,7 +353,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
             ),
             patch(
                 "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={_sanitize(dp_site_name): mock_summary}),
+                new=AsyncMock(return_value={str(dp_site.location_uuid): mock_summary}),
             ),
         ):
             # asyncio.run() here mirrors app.py's `asyncio.run(_run_app())`, under which
@@ -388,7 +381,7 @@ class TestDbPvDataSourceReadsFromDataPlatform:
         mock_summary.latlng.latitude = 51.0
         mock_summary.latlng.longitude = -1.0
         mock_summary.metadata.fields = {}
-        mock_fetch_loc_map = AsyncMock(return_value={_sanitize(dp_site_name): mock_summary})
+        mock_fetch_loc_map = AsyncMock(return_value={str(dp_site.location_uuid): mock_summary})
 
         with (
             patch(
@@ -410,46 +403,29 @@ class TestDbPvDataSourceReadsFromDataPlatform:
 
         mock_fetch_loc_map.assert_called_once()
 
-    def test_finds_location_named_with_site_uuid(self, monkeypatch, database_connection, dp_site):
-        monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "true")
-        site_uuid = str(dp_site.location_uuid)
-
-        mock_client = AsyncMock()
-        mock_client.get_observations_as_timeseries.return_value = MagicMock(values=[])
-
-        with (
-            patch(
-                "forecast_inference.data_platform.load.get_dataplatform_client",
-                return_value=_mock_dp_context(mock_client),
-            ),
-            patch(
-                "forecast_inference.data_platform.load.fetch_dp_location_map",
-                new=AsyncMock(return_value={_sanitize(site_uuid): _mock_summary(latitude=52.5)}),
-            ),
-        ):
-            result = DbPvDataSource(database_connection).get(
-                [site_uuid],
-                start_ts=dt.datetime(2024, 6, 1, tzinfo=dt.UTC),
-                end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
-            )
-
-        assert result["latitude"].sel(id=site_uuid).item() == pytest.approx(52.5)
-
 
 class TestDbPvDataSourceLoadsSitesFromDataPlatform:
     """Test `DbPvDataSource` with `LOAD_SITES_FROM_DATA_PLATFORM=true`."""
 
-    def test_lists_and_gets_sites_by_location_name(self, monkeypatch, database_connection):
+    @pytest.mark.parametrize("has_site_database_uuid", [True, False])
+    def test_lists_and_gets_sites_by_location_uuid(
+        self, monkeypatch, database_connection, has_site_database_uuid
+    ):
         monkeypatch.setenv("LOAD_SITES_FROM_DATA_PLATFORM", "true")
-        site_id = "dp_solar_site"
+        dp_uuid = "019f8397-c1b4-7f54-b09a-b62142a06688"  # DP uses uuid7
+        db_uuid = str(uuid.uuid4())
+        # The site id is the database uuid when set in metadata, else the DP uuid
+        site_id = db_uuid if has_site_database_uuid else dp_uuid
+        metadata = (
+            {"site_database_uuid": Value(string_value=db_uuid)} if has_site_database_uuid else {}
+        )
 
-        solar_summary = _mock_summary(capacity_watts=3000)
-        solar_summary.location_uuid = str(uuid.uuid4())
-        solar_summary.location_name = site_id
+        solar_summary = _mock_summary(capacity_watts=3000, metadata_fields=metadata)
+        solar_summary.location_uuid = dp_uuid
         solar_summary.energy_source = dp.EnergySource.SOLAR
 
         wind_summary = _mock_summary()
-        wind_summary.location_name = "dp_wind_site"
+        wind_summary.location_uuid = "019f4645-20cb-73ae-933c-5f00fea84e47"
         wind_summary.energy_source = dp.EnergySource.WIND
 
         mock_val = MagicMock()
@@ -468,7 +444,7 @@ class TestDbPvDataSourceLoadsSitesFromDataPlatform:
             patch(
                 "forecast_inference.data_platform.load.fetch_dp_location_map",
                 new=AsyncMock(
-                    return_value={"dp_solar_site": solar_summary, "dp_wind_site": wind_summary}
+                    return_value={site_id: solar_summary, wind_summary.location_uuid: wind_summary}
                 ),
             ),
         ):
@@ -480,7 +456,7 @@ class TestDbPvDataSourceLoadsSitesFromDataPlatform:
                 end_ts=dt.datetime(2024, 6, 2, tzinfo=dt.UTC),
             )
 
-        # The pv id is the location name, and generation is read with the location uuid
+        # Generation is read with the DP location uuid
         assert pv_ids == [site_id]
         assert result["capacity"].sel(id=site_id).item() == pytest.approx(3.0)
         assert result["power"].sel(id=site_id).values[0] == pytest.approx(1.5)

@@ -43,29 +43,25 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
         channel.close()
 
 
+def get_dp_site_id(summary: LocationSummary) -> str:
+    """A DP location's site id: its database uuid if set in metadata, else its DP uuid."""
+    value = summary.metadata.fields.get("site_database_uuid")
+    if value is not None and value.string_value:
+        return value.string_value
+    return summary.location_uuid
+
+
 async def fetch_dp_location_map(
     client: DataPlatformClient,
     location_type: dp.LocationType = dp.LocationType.SITE,
 ) -> dict[str, LocationSummary]:
     """Fetch locations from the Data Platform filtered by location type.
 
-    Returns a name → LocationSummary map. The summary includes both the UUID and
-    effective_capacity_watts, so callers avoid a second get_location gRPC call.
+    Returns a site id → LocationSummary map (see `get_dp_site_id`). The summary includes both
+    the UUID and effective_capacity_watts, so callers avoid a second get_location gRPC call.
     Pre-fetching once avoids separate list_locations calls for every forecast save.
     """
     resp = await client.list_locations(
         dp.ListLocationsRequest(location_type_filter=location_type)
     )
-    return {loc.location_name: loc for loc in resp.locations}
-
-
-def find_dp_location(
-    loc_map: dict[str, LocationSummary],
-    site_id: object,
-    client_location_name: str | None,
-) -> LocationSummary | None:
-    """Find a site's DP location by name: its id, or else its client name."""
-    summary = loc_map.get(_sanitize(str(site_id)))
-    if summary is None and client_location_name:
-        summary = loc_map.get(_sanitize(client_location_name))
-    return summary
+    return {get_dp_site_id(loc): loc for loc in resp.locations}

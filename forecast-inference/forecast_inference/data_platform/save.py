@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -14,41 +13,12 @@ from forecast_inference.data_platform.client import (
     DataPlatformClient,
     LocationSummary,
     _sanitize,
-    fetch_dp_location_map,
 )
 
 log = logging.getLogger(__name__)
 
 # Keep this static so the adjuster and API keep working even if the app version changes.
 dp_forecaster_version = "1.4.0"
-
-
-async def resolve_target_uuid(
-    client: DataPlatformClient,
-    client_location_name: str,
-    location_map: dict[str, LocationSummary] | None = None,
-) -> str | None:
-    """Look up the DP location UUID by name.
-
-    If a pre-fetched *location_map* (name → LocationSummary) is supplied it is used
-    directly, avoiding an extra list_locations gRPC call. When None, the map is fetched
-    on-demand.
-
-    Returns the UUID string if found, or None if the location does not exist yet.
-    """
-    client_location_name = _sanitize(client_location_name)
-    if location_map is None:
-        location_map = await fetch_dp_location_map(client)
-
-    summary = location_map.get(client_location_name)
-    if summary:
-        log.info(
-            f"Mapped client location '{client_location_name}' to DP UUID {summary.location_uuid}"
-        )
-        return summary.location_uuid
-
-    log.warning(f"DP location '{client_location_name}' not found.")
-    return None
 
 
 async def create_new_location(
@@ -174,25 +144,16 @@ def prepare_forecast_values(
 
 async def save_forecast_to_dataplatform(
     rows: list[dict],
-    client_location_name: str,
+    location: LocationSummary,
     model_tag: str,
     init_time_utc: datetime,
     client: DataPlatformClient,
-    capacity_kw: float,
-    latitude: float,
-    longitude: float,
-    location_map: dict[str, LocationSummary] | None = None,
 ) -> None:
     """Save forecast to the Data Platform."""
     if not rows:
         log.warning("forecast rows list is empty")
         return
 
-    if not client_location_name:
-        log.error("client_location_name is None/empty — cannot save")
-        raise ValueError("client_location_name is required to save to the Data Platform")
-
-    client_location_name = _sanitize(client_location_name)
     energy_source = dp.EnergySource.SOLAR  # UK PV only
 
     init_ts = pd.Timestamp(init_time_utc)
@@ -203,30 +164,17 @@ async def save_forecast_to_dataplatform(
     init_time_utc_dt: datetime = init_ts.floor("15min").to_pydatetime()
 
 
+    target_uuid_str = location.location_uuid
     log.info(
         "Starting DP save | "
-        f"location={client_location_name!r}  model={model_tag!r}  "
-        f"init_time={init_time_utc_dt}  capacity_kw={capacity_kw}  "
-        f"rows={len(rows)}  "
-        f"location_map_size={len(location_map) if location_map else None}",
+        f"location={location.location_name!r}  uuid={target_uuid_str}  model={model_tag!r}  "
+        f"init_time={init_time_utc_dt}  rows={len(rows)}",
     )
 
-    if location_map is None:
-        location_map = await fetch_dp_location_map(client)
+    forecaster = await create_forecaster_if_not_exists(client=client, model_tag=model_tag)
+    log.info(f"forecaster={forecaster.forecaster_name!r} v{forecaster.forecaster_version}")
 
-    target_uuid_str, forecaster = await asyncio.gather(
-        resolve_target_uuid(client, client_location_name, location_map),
-        create_forecaster_if_not_exists(client=client, model_tag=model_tag),
-    )
-    log.info(
-        f"uuid={target_uuid_str}  "
-        f"forecaster={forecaster.forecaster_name!r} v{forecaster.forecaster_version}",
-    )
-
-    if target_uuid_str is None:
-        raise ValueError(f"location {client_location_name!r} not in DP")
-
-    capacity_watts = location_map[client_location_name].effective_capacity_watts
+    capacity_watts = location.effective_capacity_watts
 
     log.info(f"capacity_watts={capacity_watts:,}  ({capacity_watts / 1000:,.1f} kW)")
 
@@ -267,4 +215,4 @@ async def save_forecast_to_dataplatform(
             f"location_uuid={target_uuid_str}  "
             f"init_time_utc={init_time_utc_dt.isoformat()}")
         raise
-    log.info(f"Save complete for location={client_location_name!r}")
+    log.info(f"Save complete for location={location.location_name!r}")
