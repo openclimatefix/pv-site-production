@@ -16,9 +16,9 @@ from pvsite_datamodel.sqlmodels import LocationSQL
 from forecast_inference.data_platform.client import (
     DataPlatformClient,
     LocationSummary,
-    get_dp_site_id,
     fetch_dp_location_map,
     get_dataplatform_client,
+    get_dp_site_id,
 )
 
 log = logging.getLogger(__name__)
