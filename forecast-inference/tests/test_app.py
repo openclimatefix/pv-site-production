@@ -142,7 +142,8 @@ def test_dp_site_forecast_is_written_to_its_database_site(
     )
 
     # Without `site_database_uuid` the pv id is the DP uuid, which isn't in the database
-    assert success is has_site_database_uuid
+    # the database write is skipped with a warning
+    assert success is True
     assert count_forecasts() - num_forecasts_before == (1 if has_site_database_uuid else 0)
 
 

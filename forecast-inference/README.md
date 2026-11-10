@@ -31,7 +31,7 @@ Optional:
 - `LOAD_SITES_FROM_DATA_PLATFORM` (default `false`): load sites and their generation
   from the Data Platform instead of the database. With `WRITE_TO_DB=true`, every location
   name must be its site's uuid in the database (e.g. `006a6820_7470_483f_9c74_14e9c76ab47a`).
-  Any other site fails, and with `--raise-on-failure` the app fails after saving the rest.
+  For any other site, the database write is skipped with a warning.
 - `READ_FROM_DATA_PLATFORM`
 - `OBSERVER_NAME` (default `pv_site_api`)
   observations from. Only used when `READ_FROM_DATA_PLATFORM=true` — has no effect

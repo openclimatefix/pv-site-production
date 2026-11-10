@@ -17,7 +17,7 @@ import sentry_sdk
 from psp.models.base import PvSiteModel
 from psp.typings import PvId, Timestamp, X
 from pvsite_datamodel.connection import DatabaseConnection
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationSQL
 
 from forecast_inference.data.nwp_data_sources import (
     download_and_add_osgb_to_nwp_data_source,
@@ -56,6 +56,10 @@ sentry_sdk.set_tag("app_name", "pv-site-production_forecast_inferance")
 sentry_sdk.set_tag("version", version)
 
 
+def _site_in_db(database_connection: DatabaseConnection, site_uuid: UUID) -> bool:
+    """Check that the site exists in the database."""
+    with database_connection.get_session() as session:
+        return session.get(LocationSQL, site_uuid) is not None
 
 
 async def _run_one_pv_and_continue_on_error(**kwargs) -> bool:
@@ -108,8 +112,10 @@ async def _run_model_and_save_for_one_pv(
         for (start, end), value in zip(model.config.horizons, pred.powers)
     ]
 
-    if write_to_db:
-        site_uuid = UUID(pv_id)
+    site_uuid = UUID(pv_id)
+    if write_to_db and not _site_in_db(database_connection, site_uuid):
+        log.warning(f'pv_id="{pv_id}" is not in the database. Skipping the database write.')
+    elif write_to_db:
         with (
             profile(f'Writing {len(rows)} forecast values to db for pv "{pv_id}"'),
             database_connection.get_session() as session,
